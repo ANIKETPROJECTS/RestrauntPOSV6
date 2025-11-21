@@ -785,7 +785,7 @@ export default function MenuPage() {
         setIsEditDialogOpen(open);
         if (!open) setEditingItem(null);
       }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Edit Menu Item</DialogTitle>
           </DialogHeader>

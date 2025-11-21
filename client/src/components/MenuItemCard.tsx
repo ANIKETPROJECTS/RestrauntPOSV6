@@ -43,14 +43,14 @@ export default function MenuItemCard({
             Out of Stock
           </Badge>
         )}
-        {quickCode && (
-          <Badge className="absolute top-1 left-3 bg-muted text-muted-foreground border shadow-sm text-[10px] px-1 py-0 font-mono">
-            {quickCode}
-          </Badge>
-        )}
         <h3 className="font-semibold text-gray-900 text-sm mb-0.5 line-clamp-2 min-h-[2.5rem]" data-testid={`text-item-name-${id}`}>
           {name}
         </h3>
+        {quickCode && (
+          <Badge className="bg-muted text-muted-foreground border shadow-sm text-[10px] px-1 py-0 font-mono mt-0.5">
+            {quickCode}
+          </Badge>
+        )}
         <p className="text-[10px] text-gray-500 mb-1.5 font-medium uppercase tracking-wide">{category}</p>
         <div className="flex items-center justify-between">
           <span className="text-base font-bold text-primary" data-testid={`text-price-${id}`}>
