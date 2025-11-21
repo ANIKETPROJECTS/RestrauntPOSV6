@@ -324,11 +324,15 @@ export default function BillingPage() {
   const handleQuickCodeEntry = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter' || !quickCode.trim()) return;
     
-    const menuItem = menuItems.find((item) => item.quickCode === quickCode.trim());
+    const normalizedCode = quickCode.trim().toLowerCase();
+    const menuItem = menuItems.find((item) => 
+      item.quickCode && item.quickCode.toLowerCase() === normalizedCode
+    );
+    
     if (!menuItem) {
       toast({
         title: "Item not found",
-        description: `No item found with quick code "${quickCode}"`,
+        description: `No item found with quick code "${quickCode.trim()}"`,
         variant: "destructive",
       });
       setQuickCode("");

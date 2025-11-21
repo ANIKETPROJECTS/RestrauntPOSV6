@@ -185,6 +185,19 @@ export class MongoStorage implements IStorage {
 
   async createMenuItem(item: InsertMenuItem): Promise<MenuItem> {
     await this.ensureConnection();
+    
+    const normalizedQuickCode = item.quickCode ? item.quickCode.trim().toLowerCase() : null;
+    
+    if (normalizedQuickCode) {
+      const existingItems = await mongodb.getCollection<MenuItem>('menuItems').find().toArray();
+      const duplicate = existingItems.find(existing => 
+        existing.quickCode && existing.quickCode.toLowerCase() === normalizedQuickCode
+      );
+      if (duplicate) {
+        throw new Error(`Quick code "${item.quickCode}" is already assigned to another item`);
+      }
+    }
+    
     const id = randomUUID();
     const menuItem: MenuItem = {
       id,
@@ -197,6 +210,7 @@ export class MongoStorage implements IStorage {
       variants: item.variants ?? null,
       image: item.image ?? null,
       description: item.description ?? null,
+      quickCode: normalizedQuickCode,
     };
     await mongodb.getCollection<MenuItem>('menuItems').insertOne(menuItem as any);
     return menuItem;
@@ -204,9 +218,27 @@ export class MongoStorage implements IStorage {
 
   async updateMenuItem(id: string, item: Partial<InsertMenuItem>): Promise<MenuItem | undefined> {
     await this.ensureConnection();
+    
+    const normalizedQuickCode = item.quickCode ? item.quickCode.trim().toLowerCase() : null;
+    const updateData = { ...item };
+    
+    if (item.quickCode !== undefined) {
+      updateData.quickCode = normalizedQuickCode;
+    }
+    
+    if (normalizedQuickCode) {
+      const existingItems = await mongodb.getCollection<MenuItem>('menuItems').find().toArray();
+      const duplicate = existingItems.find(existing => 
+        existing.id !== id && existing.quickCode && existing.quickCode.toLowerCase() === normalizedQuickCode
+      );
+      if (duplicate) {
+        throw new Error(`Quick code "${item.quickCode}" is already assigned to another item`);
+      }
+    }
+    
     const result = await mongodb.getCollection<MenuItem>('menuItems').findOneAndUpdate(
       { id } as any,
-      { $set: item },
+      { $set: updateData },
       { returnDocument: 'after' }
     );
     return result ?? undefined;
