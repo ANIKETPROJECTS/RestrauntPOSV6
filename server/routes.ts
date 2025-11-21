@@ -1463,7 +1463,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/recipes/:recipeId/ingredients", async (req, res) => {
     try {
-      const result = insertRecipeIngredientSchema.safeParse(req.body);
+      const bodySchema = insertRecipeIngredientSchema.omit({ recipeId: true });
+      const result = bodySchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
