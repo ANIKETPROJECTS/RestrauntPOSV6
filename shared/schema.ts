@@ -144,19 +144,151 @@ export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export interface InventoryItem {
   id: string;
   name: string;
-  quantity: string;
+  category: string;
+  currentStock: string;
   unit: string;
-  minQuantity: string | null;
+  minStock: string;
+  supplierId: string | null;
+  costPerUnit: string;
+  lastUpdated: Date;
 }
 
 export const insertInventoryItemSchema = z.object({
   name: z.string(),
-  quantity: z.string(),
+  category: z.string(),
+  currentStock: z.string(),
   unit: z.string(),
-  minQuantity: z.string().nullable().optional(),
+  minStock: z.string().default("0"),
+  supplierId: z.string().nullable().optional(),
+  costPerUnit: z.string().default("0"),
 });
 
 export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
+
+// Recipe types - links menu items to their required ingredients
+export interface Recipe {
+  id: string;
+  menuItemId: string;
+  createdAt: Date;
+}
+
+export const insertRecipeSchema = z.object({
+  menuItemId: z.string(),
+});
+
+export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
+
+// RecipeIngredient types - the actual ingredients needed for a recipe
+export interface RecipeIngredient {
+  id: string;
+  recipeId: string;
+  inventoryItemId: string;
+  quantity: string;
+  unit: string;
+}
+
+export const insertRecipeIngredientSchema = z.object({
+  recipeId: z.string(),
+  inventoryItemId: z.string(),
+  quantity: z.string(),
+  unit: z.string(),
+});
+
+export type InsertRecipeIngredient = z.infer<typeof insertRecipeIngredientSchema>;
+
+// Supplier types
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson: string | null;
+  phone: string;
+  email: string | null;
+  address: string | null;
+  status: string;
+  createdAt: Date;
+}
+
+export const insertSupplierSchema = z.object({
+  name: z.string(),
+  contactPerson: z.string().nullable().optional(),
+  phone: z.string(),
+  email: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  status: z.string().default("active"),
+});
+
+export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
+
+// PurchaseOrder types
+export interface PurchaseOrder {
+  id: string;
+  orderNumber: string;
+  supplierId: string;
+  orderDate: Date;
+  expectedDeliveryDate: Date | null;
+  actualDeliveryDate: Date | null;
+  status: string;
+  totalAmount: string;
+  notes: string | null;
+  createdAt: Date;
+}
+
+export const insertPurchaseOrderSchema = z.object({
+  orderNumber: z.string(),
+  supplierId: z.string(),
+  orderDate: z.coerce.date(),
+  expectedDeliveryDate: z.coerce.date().nullable().optional(),
+  status: z.string().default("pending"),
+  totalAmount: z.string().default("0"),
+  notes: z.string().nullable().optional(),
+});
+
+export type InsertPurchaseOrder = z.infer<typeof insertPurchaseOrderSchema>;
+
+// PurchaseOrderItem types
+export interface PurchaseOrderItem {
+  id: string;
+  purchaseOrderId: string;
+  inventoryItemId: string;
+  quantity: string;
+  unit: string;
+  costPerUnit: string;
+  totalCost: string;
+}
+
+export const insertPurchaseOrderItemSchema = z.object({
+  purchaseOrderId: z.string(),
+  inventoryItemId: z.string(),
+  quantity: z.string(),
+  unit: z.string(),
+  costPerUnit: z.string(),
+  totalCost: z.string(),
+});
+
+export type InsertPurchaseOrderItem = z.infer<typeof insertPurchaseOrderItemSchema>;
+
+// Wastage types
+export interface Wastage {
+  id: string;
+  inventoryItemId: string;
+  quantity: string;
+  unit: string;
+  reason: string;
+  reportedBy: string | null;
+  notes: string | null;
+  createdAt: Date;
+}
+
+export const insertWastageSchema = z.object({
+  inventoryItemId: z.string(),
+  quantity: z.string(),
+  unit: z.string(),
+  reason: z.string(),
+  reportedBy: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export type InsertWastage = z.infer<typeof insertWastageSchema>;
 
 // Invoice types
 export interface Invoice {
