@@ -524,7 +524,10 @@ export default function MenuPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Dialog open={isAddDialogOpen} onOpenChange={resetAddDialog}>
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) resetAddDialog();
+            }}>
               <DialogTrigger asChild>
                 <Button size="sm" data-testid="button-add-item">
                   <Plus className="h-4 w-4 mr-2" />
