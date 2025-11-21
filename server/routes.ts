@@ -313,6 +313,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       ];
 
+      // First, delete all existing recipes for these menu items to avoid duplicates
+      const existingRecipes = await storage.getRecipes();
+      for (const recipe of recipes) {
+        const menuItem = (await storage.getMenuItems()).find(m => m.name === recipe.menuItemName);
+        if (menuItem) {
+          const oldRecipe = existingRecipes.find(r => r.menuItemId === menuItem.id);
+          if (oldRecipe) {
+            await storage.deleteRecipe(oldRecipe.id);
+            console.log(`🗑️ Deleted old recipe for: ${menuItem.name}`);
+          }
+        }
+      }
+
       let addedRecipes = 0;
       const inventoryItems = await storage.getInventoryItems();
       const inventoryMap = new Map(inventoryItems.map(item => [item.name.toLowerCase(), item]));

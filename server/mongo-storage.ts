@@ -522,7 +522,9 @@ export class MongoStorage implements IStorage {
 
   async getRecipeByMenuItemId(menuItemId: string): Promise<Recipe | undefined> {
     await this.ensureConnection();
-    const recipe = await mongodb.getCollection<Recipe>('recipes').findOne({ menuItemId } as any);
+    const recipe = await mongodb.getCollection<Recipe>('recipes').findOne({ menuItemId } as any, {
+      sort: { createdAt: -1 } as any,
+    });
     return recipe ?? undefined;
   }
 
