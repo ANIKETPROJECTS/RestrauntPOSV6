@@ -351,31 +351,39 @@ export default function BillingPage() {
     // Add all items in a single state update
     if (itemsToAdd.length > 0) {
       setOrderItems(currentItems => {
-        const newItems = [...currentItems];
+        let updatedItems = [...currentItems];
         
         itemsToAdd.forEach(({ menuItem }) => {
-          const existingItem = newItems.find(
+          const existingIndex = updatedItems.findIndex(
             (item) => item.menuItemId === menuItem.id && !item.isFromDatabase
           );
           
-          if (existingItem) {
-            const index = newItems.findIndex((item) => item.id === existingItem.id);
-            newItems[index] = { ...existingItem, quantity: existingItem.quantity + 1 };
+          if (existingIndex !== -1) {
+            // Item exists, increment quantity
+            updatedItems = updatedItems.map((item, idx) =>
+              idx === existingIndex 
+                ? { ...item, quantity: item.quantity + 1 }
+                : item
+            );
           } else {
-            newItems.push({
-              id: Math.random().toString(36).substring(7),
-              menuItemId: menuItem.id,
-              name: menuItem.name,
-              price: parseFloat(menuItem.price),
-              quantity: 1,
-              notes: undefined,
-              isFromDatabase: false,
-              isVeg: menuItem.isVeg,
-            });
+            // Item doesn't exist, add new
+            updatedItems = [
+              ...updatedItems,
+              {
+                id: Math.random().toString(36).substring(7),
+                menuItemId: menuItem.id,
+                name: menuItem.name,
+                price: parseFloat(menuItem.price),
+                quantity: 1,
+                notes: undefined,
+                isFromDatabase: false,
+                isVeg: menuItem.isVeg,
+              }
+            ];
           }
         });
         
-        return newItems;
+        return updatedItems;
       });
       
       toast({
