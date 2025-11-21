@@ -341,23 +341,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        if (recipeData.ingredients.length > 0) {
+        if (recipe.ingredients.length > 0) {
           const createdRecipe = await storage.createRecipe({ menuItemId: menuItem.id });
           console.log(`Created recipe for: ${menuItem.name} with ID: ${createdRecipe.id}`);
           
+          let addedIngredients = 0;
           // Now add ingredients to the recipe
-          for (const ing of recipeData.ingredients) {
-            await storage.createRecipeIngredient({
-              recipeId: createdRecipe.id,
-              inventoryItemId: ing.inventoryItemId,
-              quantity: String(ing.quantity),
-              unit: ing.unit,
-            });
-            console.log(`  - Added ingredient: ${ing.inventoryItemId} (${ing.quantity}${ing.unit})`);
+          for (const ing of recipe.ingredients) {
+            const invItem = inventoryMap.get(ing.name.toLowerCase());
+            if (invItem) {
+              try {
+                await storage.createRecipeIngredient({
+                  recipeId: createdRecipe.id,
+                  inventoryItemId: invItem.id,
+                  quantity: String(ing.quantity),
+                  unit: ing.unit,
+                });
+                addedIngredients++;
+                console.log(`  ✅ Added ingredient: ${ing.name} (ID: ${invItem.id}) - ${ing.quantity}${ing.unit}`);
+              } catch (ingError) {
+                console.error(`  ❌ Failed to add ingredient ${ing.name}:`, ingError);
+              }
+            } else {
+              console.warn(`  ⚠️  Ingredient not found in inventory: ${ing.name}`);
+            }
           }
           
-          addedRecipes++;
-          console.log(`✅ Recipe fully populated for: ${menuItem.name}`);
+          if (addedIngredients > 0) {
+            addedRecipes++;
+            console.log(`✅ Recipe fully populated for: ${menuItem.name} (${addedIngredients} ingredients)`);
+          } else {
+            console.warn(`⚠️  No ingredients were added to recipe for ${menuItem.name}`);
+          }
+        } else {
+          console.warn(`⚠️  No ingredients found for recipe ${recipe.menuItemName}`);
         }
       }
 
