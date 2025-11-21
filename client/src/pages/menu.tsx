@@ -785,112 +785,115 @@ export default function MenuPage() {
         setIsEditDialogOpen(open);
         if (!open) setEditingItem(null);
       }}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Menu Item</DialogTitle>
           </DialogHeader>
           {editingItem && (
-            <form onSubmit={handleEditSubmit} className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Item Name</Label>
-                <Input 
-                  id="edit-name"
-                  name="name"
-                  placeholder="Item Name"
-                  defaultValue={editingItem.name}
-                  required
-                  data-testid="input-edit-name" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-category">Category</Label>
-                <Select name="category" defaultValue={editingItem.category} required>
-                  <SelectTrigger data-testid="select-edit-category">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.filter(c => c !== "All").map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {cat}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-price">Price</Label>
-                <Input 
-                  id="edit-price"
-                  name="price"
-                  type="number"
-                  step="0.01"
-                  placeholder="Price"
-                  defaultValue={editingItem.price}
-                  required
-                  data-testid="input-edit-price" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-cost">Cost</Label>
-                <Input 
-                  id="edit-cost"
-                  name="cost"
-                  type="number"
-                  step="0.01"
-                  placeholder="Cost"
-                  defaultValue={editingItem.cost}
-                  required
-                  data-testid="input-edit-cost" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-image">Image URL</Label>
-                <Input 
-                  id="edit-image"
-                  name="image"
-                  placeholder="https://example.com/image.jpg"
-                  defaultValue={editingItem.image || ""}
-                  data-testid="input-edit-image" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-description">Description</Label>
-                <Textarea 
-                  id="edit-description"
-                  name="description"
-                  placeholder="Item description"
-                  defaultValue={editingItem.description || ""}
-                  data-testid="input-edit-description" 
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-quickCode">Quick Code (Optional)</Label>
-                <Input 
-                  id="edit-quickCode"
-                  name="quickCode"
-                  placeholder="e.g., 1, A1, or custom code"
-                  defaultValue={editingItem.quickCode || ""}
-                  data-testid="input-edit-quickcode"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Unique code for quick entry in POS. Each item must have a different code.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-isVeg">Vegetarian</Label>
-                <Select name="isVeg" defaultValue={editingItem.isVeg ? "true" : "false"}>
-                  <SelectTrigger data-testid="select-edit-isVeg">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Vegetarian</SelectItem>
-                    <SelectItem value="false">Non-Vegetarian</SelectItem>
-                  </SelectContent>
-                </Select>
+            <form onSubmit={handleEditSubmit} className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Item Name</Label>
+                  <Input 
+                    id="edit-name"
+                    name="name"
+                    placeholder="Item Name"
+                    defaultValue={editingItem.name}
+                    required
+                    data-testid="input-edit-name" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-category">Category</Label>
+                  <Select name="category" defaultValue={editingItem.category} required>
+                    <SelectTrigger data-testid="select-edit-category">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.filter(c => c !== "All").map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-price">Price</Label>
+                  <Input 
+                    id="edit-price"
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    placeholder="Price"
+                    defaultValue={editingItem.price}
+                    required
+                    data-testid="input-edit-price" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-cost">Cost</Label>
+                  <Input 
+                    id="edit-cost"
+                    name="cost"
+                    type="number"
+                    step="0.01"
+                    placeholder="Cost"
+                    defaultValue={editingItem.cost}
+                    required
+                    data-testid="input-edit-cost" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-quickCode">Quick Code (Optional)</Label>
+                  <Input 
+                    id="edit-quickCode"
+                    name="quickCode"
+                    placeholder="e.g., 1, A1, or custom code"
+                    defaultValue={editingItem.quickCode || ""}
+                    data-testid="input-edit-quickcode"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Unique code for quick entry in POS. Each item must have a different code.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-isVeg">Vegetarian</Label>
+                  <Select name="isVeg" defaultValue={editingItem.isVeg ? "true" : "false"}>
+                    <SelectTrigger data-testid="select-edit-isVeg">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">Vegetarian</SelectItem>
+                      <SelectItem value="false">Non-Vegetarian</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="edit-image">Image URL</Label>
+                  <Input 
+                    id="edit-image"
+                    name="image"
+                    placeholder="https://example.com/image.jpg"
+                    defaultValue={editingItem.image || ""}
+                    data-testid="input-edit-image" 
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="edit-description">Description</Label>
+                  <Textarea 
+                    id="edit-description"
+                    name="description"
+                    placeholder="Item description"
+                    defaultValue={editingItem.description || ""}
+                    className="min-h-[80px]"
+                    data-testid="input-edit-description" 
+                  />
+                </div>
               </div>
               <Button 
                 type="submit"
-                className="w-full"
+                className="w-full mt-6"
                 disabled={updateMenuItemMutation.isPending}
                 data-testid="button-update-item"
               >

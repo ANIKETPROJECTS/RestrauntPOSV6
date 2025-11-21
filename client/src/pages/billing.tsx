@@ -327,7 +327,7 @@ export default function BillingPage() {
     const codes = quickCode.split(',').map(code => code.trim()).filter(code => code.length > 0);
     const notFoundCodes: string[] = [];
     const unavailableCodes: string[] = [];
-    const addedItems: string[] = [];
+    const itemsToAdd: { menuItem: any; name: string }[] = [];
     
     codes.forEach(code => {
       const normalizedCode = code.toLowerCase();
@@ -345,18 +345,46 @@ export default function BillingPage() {
         return;
       }
       
-      handleAddItem(menuItem.id);
-      addedItems.push(menuItem.name);
+      itemsToAdd.push({ menuItem, name: menuItem.name });
     });
     
-    setQuickCode("");
-    
-    if (addedItems.length > 0) {
+    // Add all items in a single state update
+    if (itemsToAdd.length > 0) {
+      setOrderItems(currentItems => {
+        const newItems = [...currentItems];
+        
+        itemsToAdd.forEach(({ menuItem }) => {
+          const existingItem = newItems.find(
+            (item) => item.menuItemId === menuItem.id && !item.isFromDatabase
+          );
+          
+          if (existingItem) {
+            const index = newItems.findIndex((item) => item.id === existingItem.id);
+            newItems[index] = { ...existingItem, quantity: existingItem.quantity + 1 };
+          } else {
+            newItems.push({
+              id: Math.random().toString(36).substring(7),
+              menuItemId: menuItem.id,
+              name: menuItem.name,
+              price: parseFloat(menuItem.price),
+              quantity: 1,
+              notes: undefined,
+              isFromDatabase: false,
+              isVeg: menuItem.isVeg,
+            });
+          }
+        });
+        
+        return newItems;
+      });
+      
       toast({
-        title: `${addedItems.length} item${addedItems.length > 1 ? 's' : ''} added`,
-        description: addedItems.join(', '),
+        title: `${itemsToAdd.length} item${itemsToAdd.length > 1 ? 's' : ''} added`,
+        description: itemsToAdd.map(item => item.name).join(', '),
       });
     }
+    
+    setQuickCode("");
     
     if (notFoundCodes.length > 0) {
       toast({
