@@ -207,6 +207,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
+  app.post("/api/menu/generate-quick-codes", async (req, res) => {
+    try {
+      const items = await storage.getMenuItems();
+      const usedCodes = new Set<string>();
+      let letterIndex = 0;
+      let numberIndex = 1;
+      let updated = 0;
+
+      for (const item of items) {
+        if (!item.quickCode) {
+          let code: string;
+          const letters = "abcdefghijklmnopqrstuvwxyz";
+          
+          do {
+            const letter = letters[Math.floor(letterIndex / 100)];
+            const num = (letterIndex % 100) + 1;
+            code = `${letter}${num}`;
+            letterIndex++;
+          } while (usedCodes.has(code));
+
+          usedCodes.add(code);
+          await storage.updateMenuItem(item.id, { quickCode: code });
+          updated++;
+        } else {
+          usedCodes.add(item.quickCode);
+        }
+      }
+
+      res.json({ success: true, updated, message: `Generated quick codes for ${updated} menu items` });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to generate quick codes" });
+    }
+  });
+
   app.get("/api/orders", async (req, res) => {
     const orders = await storage.getOrders();
     res.json(orders);
