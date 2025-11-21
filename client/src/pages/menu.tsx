@@ -199,16 +199,25 @@ export default function MenuPage() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    await createMenuItemMutation.mutateAsync({
-      name: formData.get("name") as string,
-      category: formData.get("category") as string,
-      price: formData.get("price") as string,
-      cost: formData.get("cost") as string,
-      available: true,
-      isVeg: formData.get("isVeg") === "true",
-      image: formData.get("image") as string || null,
-      description: formData.get("description") as string || null,
-    });
+    try {
+      await createMenuItemMutation.mutateAsync({
+        name: formData.get("name") as string,
+        category: formData.get("category") as string,
+        price: formData.get("price") as string,
+        cost: formData.get("cost") as string,
+        available: true,
+        isVeg: formData.get("isVeg") === "true",
+        image: formData.get("image") as string || null,
+        description: formData.get("description") as string || null,
+        quickCode: formData.get("quickCode") as string || null,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add menu item",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -217,18 +226,27 @@ export default function MenuPage() {
     
     const formData = new FormData(e.currentTarget);
     
-    await updateMenuItemMutation.mutateAsync({
-      id: editingItem.id,
-      data: {
-        name: formData.get("name") as string,
-        category: formData.get("category") as string,
-        price: formData.get("price") as string,
-        cost: formData.get("cost") as string,
-        isVeg: formData.get("isVeg") === "true",
-        image: formData.get("image") as string || null,
-        description: formData.get("description") as string || null,
-      },
-    });
+    try {
+      await updateMenuItemMutation.mutateAsync({
+        id: editingItem.id,
+        data: {
+          name: formData.get("name") as string,
+          category: formData.get("category") as string,
+          price: formData.get("price") as string,
+          cost: formData.get("cost") as string,
+          isVeg: formData.get("isVeg") === "true",
+          image: formData.get("image") as string || null,
+          description: formData.get("description") as string || null,
+          quickCode: formData.get("quickCode") as string || null,
+        },
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update menu item",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleMongoURISubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -461,6 +479,18 @@ export default function MenuPage() {
                       placeholder="Item description"
                       data-testid="input-description" 
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="quickCode">Quick Code (Optional)</Label>
+                    <Input 
+                      id="quickCode"
+                      name="quickCode"
+                      placeholder="e.g., 1, A1, or custom code"
+                      data-testid="input-quickcode"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Unique code for quick entry in POS. Each item must have a different code.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="isVeg">Vegetarian</Label>
@@ -832,6 +862,19 @@ export default function MenuPage() {
                   defaultValue={editingItem.description || ""}
                   data-testid="input-edit-description" 
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-quickCode">Quick Code (Optional)</Label>
+                <Input 
+                  id="edit-quickCode"
+                  name="quickCode"
+                  placeholder="e.g., 1, A1, or custom code"
+                  defaultValue={editingItem.quickCode || ""}
+                  data-testid="input-edit-quickcode"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Unique code for quick entry in POS. Each item must have a different code.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-isVeg">Vegetarian</Label>

@@ -52,6 +52,7 @@ export default function BillingPage() {
   const [serviceType, setServiceType] = useState<"dine-in" | "delivery" | "pickup">("dine-in");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [quickCode, setQuickCode] = useState("");
   const [checkoutMode, setCheckoutMode] = useState(false);
   const [showCheckoutDialog, setShowCheckoutDialog] = useState(false);
   const [showSplitBillDialog, setShowSplitBillDialog] = useState(false);
@@ -319,6 +320,38 @@ export default function BillingPage() {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch && item.available;
   });
+
+  const handleQuickCodeEntry = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || !quickCode.trim()) return;
+    
+    const menuItem = menuItems.find((item) => item.quickCode === quickCode.trim());
+    if (!menuItem) {
+      toast({
+        title: "Item not found",
+        description: `No item found with quick code "${quickCode}"`,
+        variant: "destructive",
+      });
+      setQuickCode("");
+      return;
+    }
+    
+    if (!menuItem.available) {
+      toast({
+        title: "Item unavailable",
+        description: `${menuItem.name} is currently out of stock`,
+        variant: "destructive",
+      });
+      setQuickCode("");
+      return;
+    }
+    
+    handleAddItem(menuItem.id);
+    setQuickCode("");
+    toast({
+      title: "Item added",
+      description: `${menuItem.name} added to cart`,
+    });
+  };
 
   const handleAddItem = (itemId: string) => {
     const menuItem = menuItems.find((item) => item.id === itemId);
@@ -888,14 +921,24 @@ export default function BillingPage() {
               </Select>
             </div>
 
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  placeholder="Search menu items..."
+                  className="pl-11 h-11 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  data-testid="input-menu-search"
+                />
+              </div>
               <Input
-                placeholder="Search menu items..."
-                className="pl-11 h-11 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                data-testid="input-menu-search"
+                placeholder="Quick code..."
+                className="w-32 h-11 text-base border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 font-mono"
+                value={quickCode}
+                onChange={(e) => setQuickCode(e.target.value)}
+                onKeyDown={handleQuickCodeEntry}
+                data-testid="input-quick-code"
               />
             </div>
             <div className="mt-3 flex items-center justify-between">
@@ -926,6 +969,7 @@ export default function BillingPage() {
                     category={item.category}
                     available={item.available}
                     isVeg={item.isVeg}
+                    quickCode={item.quickCode}
                     onAdd={handleAddItem} 
                   />
                 ))}

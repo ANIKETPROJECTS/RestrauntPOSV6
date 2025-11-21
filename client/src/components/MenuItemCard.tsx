@@ -9,6 +9,7 @@ interface MenuItemCardProps {
   image?: string;
   isVeg?: boolean;
   foodType?: 'veg' | 'non-veg' | 'egg';
+  quickCode?: string | null;
   onAdd: (id: string) => void;
 }
 
@@ -21,6 +22,7 @@ export default function MenuItemCard({
   image,
   isVeg = true,
   foodType,
+  quickCode,
   onAdd,
 }: MenuItemCardProps) {
   const type = foodType || (isVeg ? 'veg' : 'non-veg');
@@ -39,6 +41,11 @@ export default function MenuItemCard({
         {!available && (
           <Badge className="absolute top-1 right-1 bg-red-500 text-white shadow-md text-xs px-1.5 py-0">
             Out of Stock
+          </Badge>
+        )}
+        {quickCode && (
+          <Badge className="absolute top-1 left-3 bg-muted text-muted-foreground border shadow-sm text-[10px] px-1 py-0 font-mono">
+            {quickCode}
           </Badge>
         )}
         <h3 className="font-semibold text-gray-900 text-sm mb-0.5 line-clamp-2 min-h-[2.5rem]" data-testid={`text-item-name-${id}`}>
