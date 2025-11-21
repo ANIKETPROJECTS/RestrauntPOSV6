@@ -342,13 +342,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         if (recipeData.ingredients.length > 0) {
-          await storage.createRecipe(recipeData);
+          const createdRecipe = await storage.createRecipe({ menuItemId: menuItem.id });
+          console.log(`Created recipe for: ${menuItem.name} with ID: ${createdRecipe.id}`);
+          
+          // Now add ingredients to the recipe
+          for (const ing of recipeData.ingredients) {
+            await storage.createRecipeIngredient({
+              recipeId: createdRecipe.id,
+              inventoryItemId: ing.inventoryItemId,
+              quantity: String(ing.quantity),
+              unit: ing.unit,
+            });
+            console.log(`  - Added ingredient: ${ing.inventoryItemId} (${ing.quantity}${ing.unit})`);
+          }
+          
           addedRecipes++;
-          console.log(`Added recipe for: ${menuItem.name}`);
+          console.log(`✅ Recipe fully populated for: ${menuItem.name}`);
         }
       }
 
-      res.json({ success: true, addedRecipes, message: `Seeded ${addedRecipes} sample recipes` });
+      res.json({ success: true, addedRecipes, message: `Seeded ${addedRecipes} sample recipes with all ingredients` });
     } catch (error) {
       console.error("Error seeding recipes:", error);
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to seed recipes" });

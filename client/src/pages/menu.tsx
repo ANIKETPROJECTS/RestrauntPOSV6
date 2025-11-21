@@ -347,20 +347,28 @@ export default function MenuPage() {
     
     setIsLoadingRecipe(true);
     try {
+      console.log(`🔍 [Menu] Opening edit dialog for: ${item.name}`);
       const recipeRes = await apiRequest("GET", `/api/recipes/menu-item/${item.id}`);
+      console.log(`📡 [Menu] Recipe API Response Status:`, recipeRes.status);
+      
       const recipeData = await recipeRes.json();
+      console.log(`📦 [Menu] Recipe Data:`, recipeData);
       
       if (recipeData && recipeData.ingredients) {
+        console.log(`📝 [Menu] Found ${recipeData.ingredients.length} ingredients for ${item.name}`);
         const loadedIngredients: RecipeIngredient[] = recipeData.ingredients.map((ing: any) => ({
           id: ing.id,
           inventoryItemId: ing.inventoryItemId,
           quantity: ing.quantity,
           unit: ing.unit,
         }));
+        console.log(`✅ [Menu] Loaded ingredients:`, loadedIngredients);
         setIngredients(loadedIngredients);
+      } else {
+        console.warn(`⚠️ [Menu] No ingredients found in recipe data`);
       }
     } catch (error) {
-      console.log("No recipe found for this item");
+      console.error(`❌ [Menu] Error fetching recipe:`, error);
     } finally {
       setIsLoadingRecipe(false);
     }
