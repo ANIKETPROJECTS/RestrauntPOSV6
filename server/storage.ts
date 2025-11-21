@@ -13,6 +13,18 @@ import {
   type InsertOrderItem,
   type InventoryItem,
   type InsertInventoryItem,
+  type Recipe,
+  type InsertRecipe,
+  type RecipeIngredient,
+  type InsertRecipeIngredient,
+  type Supplier,
+  type InsertSupplier,
+  type PurchaseOrder,
+  type InsertPurchaseOrder,
+  type PurchaseOrderItem,
+  type InsertPurchaseOrderItem,
+  type Wastage,
+  type InsertWastage,
   type Invoice,
   type InsertInvoice,
   type Reservation,
@@ -72,7 +84,46 @@ export interface IStorage {
   getInventoryItems(): Promise<InventoryItem[]>;
   getInventoryItem(id: string): Promise<InventoryItem | undefined>;
   createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
+  updateInventoryItem(id: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined>;
   updateInventoryQuantity(id: string, quantity: string): Promise<InventoryItem | undefined>;
+  deleteInventoryItem(id: string): Promise<boolean>;
+  deductInventoryForOrder(orderId: string): Promise<void>;
+
+  getRecipes(): Promise<Recipe[]>;
+  getRecipe(id: string): Promise<Recipe | undefined>;
+  getRecipeByMenuItemId(menuItemId: string): Promise<Recipe | undefined>;
+  createRecipe(recipe: InsertRecipe): Promise<Recipe>;
+  deleteRecipe(id: string): Promise<boolean>;
+
+  getRecipeIngredients(recipeId: string): Promise<RecipeIngredient[]>;
+  getRecipeIngredient(id: string): Promise<RecipeIngredient | undefined>;
+  createRecipeIngredient(ingredient: InsertRecipeIngredient): Promise<RecipeIngredient>;
+  updateRecipeIngredient(id: string, ingredient: Partial<InsertRecipeIngredient>): Promise<RecipeIngredient | undefined>;
+  deleteRecipeIngredient(id: string): Promise<boolean>;
+
+  getSuppliers(): Promise<Supplier[]>;
+  getSupplier(id: string): Promise<Supplier | undefined>;
+  createSupplier(supplier: InsertSupplier): Promise<Supplier>;
+  updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined>;
+  deleteSupplier(id: string): Promise<boolean>;
+
+  getPurchaseOrders(): Promise<PurchaseOrder[]>;
+  getPurchaseOrder(id: string): Promise<PurchaseOrder | undefined>;
+  createPurchaseOrder(order: InsertPurchaseOrder): Promise<PurchaseOrder>;
+  updatePurchaseOrder(id: string, order: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder | undefined>;
+  receivePurchaseOrder(id: string): Promise<PurchaseOrder | undefined>;
+  deletePurchaseOrder(id: string): Promise<boolean>;
+
+  getPurchaseOrderItems(purchaseOrderId: string): Promise<PurchaseOrderItem[]>;
+  getPurchaseOrderItem(id: string): Promise<PurchaseOrderItem | undefined>;
+  createPurchaseOrderItem(item: InsertPurchaseOrderItem): Promise<PurchaseOrderItem>;
+  updatePurchaseOrderItem(id: string, item: Partial<InsertPurchaseOrderItem>): Promise<PurchaseOrderItem | undefined>;
+  deletePurchaseOrderItem(id: string): Promise<boolean>;
+
+  getWastages(): Promise<Wastage[]>;
+  getWastage(id: string): Promise<Wastage | undefined>;
+  createWastage(wastage: InsertWastage): Promise<Wastage>;
+  deleteWastage(id: string): Promise<boolean>;
 
   getInvoices(): Promise<Invoice[]>;
   getInvoice(id: string): Promise<Invoice | undefined>;
@@ -532,20 +583,160 @@ export class MemStorage implements IStorage {
     const inventoryItem: InventoryItem = {
       id,
       name: item.name,
-      quantity: item.quantity,
+      category: item.category,
+      currentStock: item.currentStock,
       unit: item.unit,
-      minQuantity: item.minQuantity ?? null,
+      minStock: item.minStock ?? "0",
+      supplierId: item.supplierId ?? null,
+      costPerUnit: item.costPerUnit ?? "0",
+      lastUpdated: new Date(),
     };
     this.inventoryItems.set(id, inventoryItem);
     return inventoryItem;
   }
 
+  async updateInventoryItem(id: string, data: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined> {
+    const item = this.inventoryItems.get(id);
+    if (!item) return undefined;
+    const updated: InventoryItem = { ...item, ...data, lastUpdated: new Date() };
+    this.inventoryItems.set(id, updated);
+    return updated;
+  }
+
   async updateInventoryQuantity(id: string, quantity: string): Promise<InventoryItem | undefined> {
     const item = this.inventoryItems.get(id);
     if (!item) return undefined;
-    const updated: InventoryItem = { ...item, quantity };
+    const updated: InventoryItem = { ...item, currentStock: quantity, lastUpdated: new Date() };
     this.inventoryItems.set(id, updated);
     return updated;
+  }
+
+  async deleteInventoryItem(id: string): Promise<boolean> {
+    return this.inventoryItems.delete(id);
+  }
+
+  async deductInventoryForOrder(orderId: string): Promise<void> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getRecipes(): Promise<Recipe[]> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getRecipe(id: string): Promise<Recipe | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getRecipeByMenuItemId(menuItemId: string): Promise<Recipe | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async createRecipe(recipe: InsertRecipe): Promise<Recipe> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async deleteRecipe(id: string): Promise<boolean> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getRecipeIngredients(recipeId: string): Promise<RecipeIngredient[]> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getRecipeIngredient(id: string): Promise<RecipeIngredient | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async createRecipeIngredient(ingredient: InsertRecipeIngredient): Promise<RecipeIngredient> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async updateRecipeIngredient(id: string, ingredient: Partial<InsertRecipeIngredient>): Promise<RecipeIngredient | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async deleteRecipeIngredient(id: string): Promise<boolean> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getSuppliers(): Promise<Supplier[]> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getSupplier(id: string): Promise<Supplier | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async deleteSupplier(id: string): Promise<boolean> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getPurchaseOrders(): Promise<PurchaseOrder[]> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getPurchaseOrder(id: string): Promise<PurchaseOrder | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async createPurchaseOrder(order: InsertPurchaseOrder): Promise<PurchaseOrder> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async updatePurchaseOrder(id: string, order: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async receivePurchaseOrder(id: string): Promise<PurchaseOrder | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async deletePurchaseOrder(id: string): Promise<boolean> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getPurchaseOrderItems(purchaseOrderId: string): Promise<PurchaseOrderItem[]> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getPurchaseOrderItem(id: string): Promise<PurchaseOrderItem | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async createPurchaseOrderItem(item: InsertPurchaseOrderItem): Promise<PurchaseOrderItem> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async updatePurchaseOrderItem(id: string, item: Partial<InsertPurchaseOrderItem>): Promise<PurchaseOrderItem | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async deletePurchaseOrderItem(id: string): Promise<boolean> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getWastages(): Promise<Wastage[]> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async getWastage(id: string): Promise<Wastage | undefined> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async createWastage(wastage: InsertWastage): Promise<Wastage> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
+  }
+
+  async deleteWastage(id: string): Promise<boolean> {
+    throw new Error("Not implemented in MemStorage - use MongoStorage");
   }
 
   async getInvoices(): Promise<Invoice[]> {

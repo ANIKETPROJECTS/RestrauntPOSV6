@@ -14,6 +14,18 @@ import {
   type InsertOrderItem,
   type InventoryItem,
   type InsertInventoryItem,
+  type Recipe,
+  type InsertRecipe,
+  type RecipeIngredient,
+  type InsertRecipeIngredient,
+  type Supplier,
+  type InsertSupplier,
+  type PurchaseOrder,
+  type InsertPurchaseOrder,
+  type PurchaseOrderItem,
+  type InsertPurchaseOrderItem,
+  type Wastage,
+  type InsertWastage,
   type Invoice,
   type InsertInvoice,
   type Reservation,
@@ -436,22 +448,342 @@ export class MongoStorage implements IStorage {
     const inventoryItem: InventoryItem = {
       id,
       name: item.name,
-      quantity: item.quantity,
+      category: item.category,
+      currentStock: item.currentStock,
       unit: item.unit,
-      minQuantity: item.minQuantity ?? null,
+      minStock: item.minStock ?? "0",
+      supplierId: item.supplierId ?? null,
+      costPerUnit: item.costPerUnit ?? "0",
+      lastUpdated: new Date(),
     };
     await mongodb.getCollection<InventoryItem>('inventoryItems').insertOne(inventoryItem as any);
     return inventoryItem;
+  }
+
+  async updateInventoryItem(id: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<InventoryItem>('inventoryItems').findOneAndUpdate(
+      { id } as any,
+      { $set: { ...item, lastUpdated: new Date() } },
+      { returnDocument: 'after' }
+    );
+    return result ?? undefined;
   }
 
   async updateInventoryQuantity(id: string, quantity: string): Promise<InventoryItem | undefined> {
     await this.ensureConnection();
     const result = await mongodb.getCollection<InventoryItem>('inventoryItems').findOneAndUpdate(
       { id } as any,
-      { $set: { quantity } },
+      { $set: { currentStock: quantity, lastUpdated: new Date() } },
       { returnDocument: 'after' }
     );
     return result ?? undefined;
+  }
+
+  async deleteInventoryItem(id: string): Promise<boolean> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<InventoryItem>('inventoryItems').deleteOne({ id } as any);
+    return result.deletedCount > 0;
+  }
+
+  async deductInventoryForOrder(orderId: string): Promise<void> {
+    await this.ensureConnection();
+    const orderItems = await this.getOrderItems(orderId);
+    
+    for (const orderItem of orderItems) {
+      const recipe = await this.getRecipeByMenuItemId(orderItem.menuItemId);
+      if (!recipe) continue;
+      
+      const recipeIngredients = await this.getRecipeIngredients(recipe.id);
+      
+      for (const ingredient of recipeIngredients) {
+        const inventoryItem = await this.getInventoryItem(ingredient.inventoryItemId);
+        if (!inventoryItem) continue;
+        
+        const quantityToDeduct = parseFloat(ingredient.quantity) * orderItem.quantity;
+        const newStock = parseFloat(inventoryItem.currentStock) - quantityToDeduct;
+        
+        await this.updateInventoryQuantity(ingredient.inventoryItemId, newStock.toString());
+      }
+    }
+  }
+
+  async getRecipes(): Promise<Recipe[]> {
+    await this.ensureConnection();
+    const recipes = await mongodb.getCollection<Recipe>('recipes').find().toArray();
+    return recipes;
+  }
+
+  async getRecipe(id: string): Promise<Recipe | undefined> {
+    await this.ensureConnection();
+    const recipe = await mongodb.getCollection<Recipe>('recipes').findOne({ id } as any);
+    return recipe ?? undefined;
+  }
+
+  async getRecipeByMenuItemId(menuItemId: string): Promise<Recipe | undefined> {
+    await this.ensureConnection();
+    const recipe = await mongodb.getCollection<Recipe>('recipes').findOne({ menuItemId } as any);
+    return recipe ?? undefined;
+  }
+
+  async createRecipe(insertRecipe: InsertRecipe): Promise<Recipe> {
+    await this.ensureConnection();
+    const id = randomUUID();
+    const recipe: Recipe = {
+      id,
+      menuItemId: insertRecipe.menuItemId,
+      createdAt: new Date(),
+    };
+    await mongodb.getCollection<Recipe>('recipes').insertOne(recipe as any);
+    return recipe;
+  }
+
+  async deleteRecipe(id: string): Promise<boolean> {
+    await this.ensureConnection();
+    await mongodb.getCollection<RecipeIngredient>('recipeIngredients').deleteMany({ recipeId: id } as any);
+    const result = await mongodb.getCollection<Recipe>('recipes').deleteOne({ id } as any);
+    return result.deletedCount > 0;
+  }
+
+  async getRecipeIngredients(recipeId: string): Promise<RecipeIngredient[]> {
+    await this.ensureConnection();
+    const ingredients = await mongodb.getCollection<RecipeIngredient>('recipeIngredients').find({ recipeId } as any).toArray();
+    return ingredients;
+  }
+
+  async getRecipeIngredient(id: string): Promise<RecipeIngredient | undefined> {
+    await this.ensureConnection();
+    const ingredient = await mongodb.getCollection<RecipeIngredient>('recipeIngredients').findOne({ id } as any);
+    return ingredient ?? undefined;
+  }
+
+  async createRecipeIngredient(insertIngredient: InsertRecipeIngredient): Promise<RecipeIngredient> {
+    await this.ensureConnection();
+    const id = randomUUID();
+    const ingredient: RecipeIngredient = {
+      id,
+      recipeId: insertIngredient.recipeId,
+      inventoryItemId: insertIngredient.inventoryItemId,
+      quantity: insertIngredient.quantity,
+      unit: insertIngredient.unit,
+    };
+    await mongodb.getCollection<RecipeIngredient>('recipeIngredients').insertOne(ingredient as any);
+    return ingredient;
+  }
+
+  async updateRecipeIngredient(id: string, data: Partial<InsertRecipeIngredient>): Promise<RecipeIngredient | undefined> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<RecipeIngredient>('recipeIngredients').findOneAndUpdate(
+      { id } as any,
+      { $set: data },
+      { returnDocument: 'after' }
+    );
+    return result ?? undefined;
+  }
+
+  async deleteRecipeIngredient(id: string): Promise<boolean> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<RecipeIngredient>('recipeIngredients').deleteOne({ id } as any);
+    return result.deletedCount > 0;
+  }
+
+  async getSuppliers(): Promise<Supplier[]> {
+    await this.ensureConnection();
+    const suppliers = await mongodb.getCollection<Supplier>('suppliers').find().toArray();
+    return suppliers;
+  }
+
+  async getSupplier(id: string): Promise<Supplier | undefined> {
+    await this.ensureConnection();
+    const supplier = await mongodb.getCollection<Supplier>('suppliers').findOne({ id } as any);
+    return supplier ?? undefined;
+  }
+
+  async createSupplier(insertSupplier: InsertSupplier): Promise<Supplier> {
+    await this.ensureConnection();
+    const id = randomUUID();
+    const supplier: Supplier = {
+      id,
+      name: insertSupplier.name,
+      contactPerson: insertSupplier.contactPerson ?? null,
+      phone: insertSupplier.phone,
+      email: insertSupplier.email ?? null,
+      address: insertSupplier.address ?? null,
+      status: insertSupplier.status ?? "active",
+      createdAt: new Date(),
+    };
+    await mongodb.getCollection<Supplier>('suppliers').insertOne(supplier as any);
+    return supplier;
+  }
+
+  async updateSupplier(id: string, data: Partial<InsertSupplier>): Promise<Supplier | undefined> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<Supplier>('suppliers').findOneAndUpdate(
+      { id } as any,
+      { $set: data },
+      { returnDocument: 'after' }
+    );
+    return result ?? undefined;
+  }
+
+  async deleteSupplier(id: string): Promise<boolean> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<Supplier>('suppliers').deleteOne({ id } as any);
+    return result.deletedCount > 0;
+  }
+
+  async getPurchaseOrders(): Promise<PurchaseOrder[]> {
+    await this.ensureConnection();
+    const orders = await mongodb.getCollection<PurchaseOrder>('purchaseOrders').find().sort({ orderDate: -1 }).toArray();
+    return orders;
+  }
+
+  async getPurchaseOrder(id: string): Promise<PurchaseOrder | undefined> {
+    await this.ensureConnection();
+    const order = await mongodb.getCollection<PurchaseOrder>('purchaseOrders').findOne({ id } as any);
+    return order ?? undefined;
+  }
+
+  async createPurchaseOrder(insertOrder: InsertPurchaseOrder): Promise<PurchaseOrder> {
+    await this.ensureConnection();
+    const id = randomUUID();
+    const order: PurchaseOrder = {
+      id,
+      orderNumber: insertOrder.orderNumber,
+      supplierId: insertOrder.supplierId,
+      orderDate: insertOrder.orderDate,
+      expectedDeliveryDate: insertOrder.expectedDeliveryDate ?? null,
+      actualDeliveryDate: null,
+      status: insertOrder.status ?? "pending",
+      totalAmount: insertOrder.totalAmount ?? "0",
+      notes: insertOrder.notes ?? null,
+      createdAt: new Date(),
+    };
+    await mongodb.getCollection<PurchaseOrder>('purchaseOrders').insertOne(order as any);
+    return order;
+  }
+
+  async updatePurchaseOrder(id: string, data: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder | undefined> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<PurchaseOrder>('purchaseOrders').findOneAndUpdate(
+      { id } as any,
+      { $set: data },
+      { returnDocument: 'after' }
+    );
+    return result ?? undefined;
+  }
+
+  async receivePurchaseOrder(id: string): Promise<PurchaseOrder | undefined> {
+    await this.ensureConnection();
+    
+    const purchaseOrderItems = await this.getPurchaseOrderItems(id);
+    for (const item of purchaseOrderItems) {
+      const inventoryItem = await this.getInventoryItem(item.inventoryItemId);
+      if (inventoryItem) {
+        const newStock = parseFloat(inventoryItem.currentStock) + parseFloat(item.quantity);
+        await this.updateInventoryQuantity(item.inventoryItemId, newStock.toString());
+      }
+    }
+    
+    const result = await mongodb.getCollection<PurchaseOrder>('purchaseOrders').findOneAndUpdate(
+      { id } as any,
+      { $set: { status: "received", actualDeliveryDate: new Date() } },
+      { returnDocument: 'after' }
+    );
+    return result ?? undefined;
+  }
+
+  async deletePurchaseOrder(id: string): Promise<boolean> {
+    await this.ensureConnection();
+    await mongodb.getCollection<PurchaseOrderItem>('purchaseOrderItems').deleteMany({ purchaseOrderId: id } as any);
+    const result = await mongodb.getCollection<PurchaseOrder>('purchaseOrders').deleteOne({ id } as any);
+    return result.deletedCount > 0;
+  }
+
+  async getPurchaseOrderItems(purchaseOrderId: string): Promise<PurchaseOrderItem[]> {
+    await this.ensureConnection();
+    const items = await mongodb.getCollection<PurchaseOrderItem>('purchaseOrderItems').find({ purchaseOrderId } as any).toArray();
+    return items;
+  }
+
+  async getPurchaseOrderItem(id: string): Promise<PurchaseOrderItem | undefined> {
+    await this.ensureConnection();
+    const item = await mongodb.getCollection<PurchaseOrderItem>('purchaseOrderItems').findOne({ id } as any);
+    return item ?? undefined;
+  }
+
+  async createPurchaseOrderItem(insertItem: InsertPurchaseOrderItem): Promise<PurchaseOrderItem> {
+    await this.ensureConnection();
+    const id = randomUUID();
+    const item: PurchaseOrderItem = {
+      id,
+      purchaseOrderId: insertItem.purchaseOrderId,
+      inventoryItemId: insertItem.inventoryItemId,
+      quantity: insertItem.quantity,
+      unit: insertItem.unit,
+      costPerUnit: insertItem.costPerUnit,
+      totalCost: insertItem.totalCost,
+    };
+    await mongodb.getCollection<PurchaseOrderItem>('purchaseOrderItems').insertOne(item as any);
+    return item;
+  }
+
+  async updatePurchaseOrderItem(id: string, data: Partial<InsertPurchaseOrderItem>): Promise<PurchaseOrderItem | undefined> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<PurchaseOrderItem>('purchaseOrderItems').findOneAndUpdate(
+      { id } as any,
+      { $set: data },
+      { returnDocument: 'after' }
+    );
+    return result ?? undefined;
+  }
+
+  async deletePurchaseOrderItem(id: string): Promise<boolean> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<PurchaseOrderItem>('purchaseOrderItems').deleteOne({ id } as any);
+    return result.deletedCount > 0;
+  }
+
+  async getWastages(): Promise<Wastage[]> {
+    await this.ensureConnection();
+    const wastages = await mongodb.getCollection<Wastage>('wastages').find().sort({ createdAt: -1 }).toArray();
+    return wastages;
+  }
+
+  async getWastage(id: string): Promise<Wastage | undefined> {
+    await this.ensureConnection();
+    const wastage = await mongodb.getCollection<Wastage>('wastages').findOne({ id } as any);
+    return wastage ?? undefined;
+  }
+
+  async createWastage(insertWastage: InsertWastage): Promise<Wastage> {
+    await this.ensureConnection();
+    const id = randomUUID();
+    const wastage: Wastage = {
+      id,
+      inventoryItemId: insertWastage.inventoryItemId,
+      quantity: insertWastage.quantity,
+      unit: insertWastage.unit,
+      reason: insertWastage.reason,
+      reportedBy: insertWastage.reportedBy ?? null,
+      notes: insertWastage.notes ?? null,
+      createdAt: new Date(),
+    };
+    
+    const inventoryItem = await this.getInventoryItem(insertWastage.inventoryItemId);
+    if (inventoryItem) {
+      const newStock = parseFloat(inventoryItem.currentStock) - parseFloat(insertWastage.quantity);
+      await this.updateInventoryQuantity(insertWastage.inventoryItemId, newStock.toString());
+    }
+    
+    await mongodb.getCollection<Wastage>('wastages').insertOne(wastage as any);
+    return wastage;
+  }
+
+  async deleteWastage(id: string): Promise<boolean> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<Wastage>('wastages').deleteOne({ id } as any);
+    return result.deletedCount > 0;
   }
 
   async getInvoices(): Promise<Invoice[]> {
