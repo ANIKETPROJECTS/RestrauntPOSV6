@@ -247,6 +247,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/menu/seed-sample-recipes", async (req, res) => {
+    try {
+      const recipes = [
+        {
+          menuItemName: "Thai Basil Paneer (Starter)",
+          ingredients: [
+            { name: "Paneer", quantity: "150", unit: "g" },
+            { name: "Thai Basil", quantity: "15", unit: "g" },
+            { name: "Red Chili", quantity: "2", unit: "pcs" },
+            { name: "Garlic", quantity: "6", unit: "cloves" },
+            { name: "Cooking Oil", quantity: "30", unit: "ml" },
+            { name: "Soy Sauce", quantity: "20", unit: "ml" },
+          ],
+        },
+        {
+          menuItemName: "Thai Basil Chicken (Starter)",
+          ingredients: [
+            { name: "Chicken Breast", quantity: "150", unit: "g" },
+            { name: "Thai Basil", quantity: "15", unit: "g" },
+            { name: "Red Chili", quantity: "2", unit: "pcs" },
+            { name: "Garlic", quantity: "6", unit: "cloves" },
+            { name: "Cooking Oil", quantity: "30", unit: "ml" },
+            { name: "Soy Sauce", quantity: "20", unit: "ml" },
+          ],
+        },
+        {
+          menuItemName: "Thai Basil Prawns (Starter)",
+          ingredients: [
+            { name: "Prawns", quantity: "150", unit: "g" },
+            { name: "Thai Basil", quantity: "15", unit: "g" },
+            { name: "Red Chili", quantity: "2", unit: "pcs" },
+            { name: "Garlic", quantity: "6", unit: "cloves" },
+            { name: "Cooking Oil", quantity: "30", unit: "ml" },
+            { name: "Soy Sauce", quantity: "20", unit: "ml" },
+          ],
+        },
+        {
+          menuItemName: "Thai Curry With Steam Rice Paneer",
+          ingredients: [
+            { name: "Paneer", quantity: "200", unit: "g" },
+            { name: "Coconut Milk", quantity: "200", unit: "ml" },
+            { name: "Lemongrass", quantity: "10", unit: "g" },
+            { name: "Garlic", quantity: "8", unit: "cloves" },
+            { name: "Ginger", quantity: "15", unit: "g" },
+            { name: "Green Chili", quantity: "2", unit: "pcs" },
+            { name: "Lime", quantity: "0.5", unit: "pcs" },
+            { name: "Fish Sauce", quantity: "15", unit: "ml" },
+            { name: "Cooking Oil", quantity: "40", unit: "ml" },
+          ],
+        },
+        {
+          menuItemName: "Thai Curry With Steam Rice Chicken",
+          ingredients: [
+            { name: "Chicken Breast", quantity: "200", unit: "g" },
+            { name: "Coconut Milk", quantity: "200", unit: "ml" },
+            { name: "Lemongrass", quantity: "10", unit: "g" },
+            { name: "Garlic", quantity: "8", unit: "cloves" },
+            { name: "Ginger", quantity: "15", unit: "g" },
+            { name: "Green Chili", quantity: "2", unit: "pcs" },
+            { name: "Lime", quantity: "0.5", unit: "pcs" },
+            { name: "Fish Sauce", quantity: "15", unit: "ml" },
+            { name: "Cooking Oil", quantity: "40", unit: "ml" },
+          ],
+        },
+      ];
+
+      let addedRecipes = 0;
+      const inventoryItems = await storage.getInventoryItems();
+      const inventoryMap = new Map(inventoryItems.map(item => [item.name.toLowerCase(), item]));
+
+      for (const recipe of recipes) {
+        const menuItem = (await storage.getMenuItems()).find(m => m.name === recipe.menuItemName);
+        if (!menuItem) {
+          console.log(`Menu item not found: ${recipe.menuItemName}`);
+          continue;
+        }
+
+        const recipeData = {
+          menuItemId: menuItem.id,
+          name: `Recipe for ${menuItem.name}`,
+          ingredients: [] as any[],
+        };
+
+        for (const ing of recipe.ingredients) {
+          const invItem = inventoryMap.get(ing.name.toLowerCase());
+          if (invItem) {
+            recipeData.ingredients.push({
+              inventoryItemId: invItem.id,
+              quantity: parseFloat(ing.quantity),
+              unit: ing.unit,
+            });
+          }
+        }
+
+        if (recipeData.ingredients.length > 0) {
+          await storage.createRecipe(recipeData);
+          addedRecipes++;
+          console.log(`Added recipe for: ${menuItem.name}`);
+        }
+      }
+
+      res.json({ success: true, addedRecipes, message: `Seeded ${addedRecipes} sample recipes` });
+    } catch (error) {
+      console.error("Error seeding recipes:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to seed recipes" });
+    }
+  });
+
   app.get("/api/orders", async (req, res) => {
     const orders = await storage.getOrders();
     res.json(orders);
