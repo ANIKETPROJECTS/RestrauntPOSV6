@@ -157,14 +157,14 @@ export class MemStorage implements IStorage {
     });
 
     const menuData: Omit<MenuItem, "id">[] = [
-      { name: "Chicken Burger", category: "Burgers", price: "199.00", cost: "80.00", available: true, isVeg: false, variants: ["Regular", "Large"], image: null, description: null },
-      { name: "Veggie Pizza", category: "Pizza", price: "299.00", cost: "120.00", available: true, isVeg: true, variants: null, image: null, description: null },
-      { name: "French Fries", category: "Fast Food", price: "99.00", cost: "35.00", available: true, isVeg: true, variants: ["Small", "Medium", "Large"], image: null, description: null },
-      { name: "Coca Cola", category: "Beverages", price: "50.00", cost: "20.00", available: true, isVeg: true, variants: null, image: null, description: null },
-      { name: "Caesar Salad", category: "Salads", price: "149.00", cost: "60.00", available: true, isVeg: true, variants: null, image: null, description: null },
-      { name: "Pasta Alfredo", category: "Pasta", price: "249.00", cost: "100.00", available: true, isVeg: true, variants: null, image: null, description: null },
-      { name: "Chocolate Cake", category: "Desserts", price: "129.00", cost: "50.00", available: true, isVeg: true, variants: null, image: null, description: null },
-      { name: "Ice Cream", category: "Desserts", price: "79.00", cost: "30.00", available: true, isVeg: true, variants: ["Vanilla", "Chocolate", "Strawberry"], image: null, description: null },
+      { name: "Chicken Burger", category: "Burgers", price: "199.00", cost: "80.00", available: true, isVeg: false, variants: ["Regular", "Large"], image: null, description: null, quickCode: "1" },
+      { name: "Veggie Pizza", category: "Pizza", price: "299.00", cost: "120.00", available: true, isVeg: true, variants: null, image: null, description: null, quickCode: "2" },
+      { name: "French Fries", category: "Fast Food", price: "99.00", cost: "35.00", available: true, isVeg: true, variants: ["Small", "Medium", "Large"], image: null, description: null, quickCode: "3" },
+      { name: "Coca Cola", category: "Beverages", price: "50.00", cost: "20.00", available: true, isVeg: true, variants: null, image: null, description: null, quickCode: "4" },
+      { name: "Caesar Salad", category: "Salads", price: "149.00", cost: "60.00", available: true, isVeg: true, variants: null, image: null, description: null, quickCode: "5" },
+      { name: "Pasta Alfredo", category: "Pasta", price: "249.00", cost: "100.00", available: true, isVeg: true, variants: null, image: null, description: null, quickCode: "6" },
+      { name: "Chocolate Cake", category: "Desserts", price: "129.00", cost: "50.00", available: true, isVeg: true, variants: null, image: null, description: null, quickCode: "7" },
+      { name: "Ice Cream", category: "Desserts", price: "79.00", cost: "30.00", available: true, isVeg: true, variants: ["Vanilla", "Chocolate", "Strawberry"], image: null, description: null, quickCode: "8" },
     ];
 
     menuData.forEach((item) => {
@@ -180,6 +180,7 @@ export class MemStorage implements IStorage {
         variants: item.variants,
         image: item.image,
         description: item.description,
+        quickCode: item.quickCode,
       };
       this.menuItems.set(id, menuItem);
     });
@@ -312,6 +313,17 @@ export class MemStorage implements IStorage {
 
   async createMenuItem(item: InsertMenuItem): Promise<MenuItem> {
     const id = randomUUID();
+    
+    // Validate quick code uniqueness if provided
+    if (item.quickCode) {
+      const existingItem = Array.from(this.menuItems.values()).find(
+        menuItem => menuItem.quickCode === item.quickCode
+      );
+      if (existingItem) {
+        throw new Error(`Quick code "${item.quickCode}" is already in use by "${existingItem.name}"`);
+      }
+    }
+    
     const menuItem: MenuItem = {
       id,
       name: item.name,
@@ -323,6 +335,7 @@ export class MemStorage implements IStorage {
       variants: item.variants ?? null,
       image: item.image ?? null,
       description: item.description ?? null,
+      quickCode: item.quickCode ?? null,
     };
     this.menuItems.set(id, menuItem);
     return menuItem;
@@ -331,6 +344,17 @@ export class MemStorage implements IStorage {
   async updateMenuItem(id: string, item: Partial<InsertMenuItem>): Promise<MenuItem | undefined> {
     const existing = this.menuItems.get(id);
     if (!existing) return undefined;
+    
+    // Validate quick code uniqueness if being changed
+    if (item.quickCode !== undefined && item.quickCode !== null) {
+      const existingItem = Array.from(this.menuItems.values()).find(
+        menuItem => menuItem.id !== id && menuItem.quickCode === item.quickCode
+      );
+      if (existingItem) {
+        throw new Error(`Quick code "${item.quickCode}" is already in use by "${existingItem.name}"`);
+      }
+    }
+    
     const updated: MenuItem = {
       ...existing,
       name: item.name ?? existing.name,
@@ -342,6 +366,7 @@ export class MemStorage implements IStorage {
       variants: item.variants !== undefined ? item.variants : existing.variants,
       image: item.image !== undefined ? item.image : existing.image,
       description: item.description !== undefined ? item.description : existing.description,
+      quickCode: item.quickCode !== undefined ? item.quickCode : existing.quickCode,
     };
     this.menuItems.set(id, updated);
     return updated;

@@ -60,6 +60,7 @@ export interface MenuItem {
   variants: string[] | null;
   image: string | null;
   description: string | null;
+  quickCode: string | null;
 }
 
 export const insertMenuItemSchema = z.object({
@@ -72,6 +73,7 @@ export const insertMenuItemSchema = z.object({
   variants: z.array(z.string()).nullable().optional(),
   image: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
+  quickCode: z.string().nullable().optional(),
 });
 
 export type InsertMenuItem = z.infer<typeof insertMenuItemSchema>;
