@@ -652,14 +652,14 @@ export default function InventoryPage() {
             </div>
 
             {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Category Distribution Pie Chart */}
+            <div className="grid grid-cols-1 gap-6">
+              {/* Category Distribution Pie Chart - Full Width */}
               <Card className="p-6 border-2 border-indigo-200">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-indigo-600" />
                   Category Distribution
                 </h3>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={500}>
                   <PieChart>
                     <Pie
                       data={Object.entries(itemsByCategory)
@@ -672,9 +672,10 @@ export default function InventoryPage() {
                       cy="50%"
                       labelLine={false}
                       label={({ name, value }) => `${name}: ${value}`}
-                      outerRadius={80}
+                      outerRadius={150}
                       fill="#8884d8"
                       dataKey="value"
+                      labelStyle={{ fontSize: '11px', fill: '#374151' }}
                     >
                       {['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B88B', '#A9DFBF', '#F9E2AF', '#D7BDE2', '#A3E4D7', '#F5B7B1', '#D5F4E6', '#FADBD8', '#D6EADF', '#EBD6DC', '#FCE4EC', '#E0E0E0'].map((color, idx) => (
                         <Cell key={`cell-${idx}`} fill={color} />
