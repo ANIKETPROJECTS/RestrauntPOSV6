@@ -512,19 +512,6 @@ export default function InventoryPage() {
                           data-testid={`card-item-${item.id}`}
                         >
                           <div className="p-3">
-                            {item.image ? (
-                              <div className="h-24 bg-muted rounded mb-2 overflow-hidden">
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ) : (
-                              <div className="h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded mb-2 flex items-center justify-center text-muted-foreground text-xs">
-                                No image
-                              </div>
-                            )}
                             <h4 className="font-semibold text-sm line-clamp-2 mb-2 text-gray-800">{item.name}</h4>
                             <div className="space-y-1 text-xs mb-3">
                               <div className="flex justify-between">
