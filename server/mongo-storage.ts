@@ -434,31 +434,8 @@ export class MongoStorage implements IStorage {
 
   async getInventoryItems(): Promise<InventoryItem[]> {
     await this.ensureConnection();
-    console.log(`[DEBUG] Getting inventory items from MongoDB...`);
-    
-    try {
-      const collection = mongodb.getCollection<InventoryItem>('inventory');
-      console.log(`[DEBUG] Collection reference obtained`);
-      
-      const items = await collection.find({}).toArray();
-      console.log(`[DEBUG] Query completed - Found ${items.length} items`);
-      
-      if (items.length > 0) {
-        console.log(`[DEBUG] Sample item:`, JSON.stringify(items[0], null, 2));
-      }
-      
-      // Count by category
-      const categoryCounts: Record<string, number> = {};
-      items.forEach(item => {
-        categoryCounts[item.category] = (categoryCounts[item.category] || 0) + 1;
-      });
-      console.log(`[DEBUG] Items by category:`, JSON.stringify(categoryCounts, null, 2));
-      
-      return items;
-    } catch (error) {
-      console.error(`[ERROR] Failed to get inventory items:`, error);
-      return [];
-    }
+    const items = await mongodb.getCollection<InventoryItem>('inventory').find().toArray();
+    return items;
   }
 
   async getInventoryItem(id: string): Promise<InventoryItem | undefined> {
