@@ -226,9 +226,7 @@ export default function InventoryPage() {
 
   const itemsByCategory = categories.filter(c => c !== "All").reduce((acc, cat) => {
     const catItems = filteredItems.filter(item => item.category === cat);
-    if (catItems.length > 0) {
-      acc[cat] = catItems;
-    }
+    acc[cat] = catItems;
     return acc;
   }, {} as Record<string, InventoryItem[]>);
 
@@ -414,6 +412,11 @@ export default function InventoryPage() {
 
                   {expandedCategories[category] && (
                     <div className="p-4 bg-background">
+                      {catItems.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No items in this category
+                        </div>
+                      ) : (
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         {catItems.map(item => (
                           <div
@@ -482,6 +485,7 @@ export default function InventoryPage() {
                           </div>
                         ))}
                       </div>
+                      )}
                     </div>
                   )}
                 </div>
