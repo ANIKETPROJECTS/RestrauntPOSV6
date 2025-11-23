@@ -671,11 +671,16 @@ export default function InventoryPage() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, value, x, y }) => (
-                        <text x={x} y={y} fill="#1F2937" fontSize="12" fontWeight="bold" textAnchor="middle" dominantBaseline="central">
-                          {name}: {value}
-                        </text>
-                      )}
+                      label={({ name, value, x, y }) => {
+                        const angle = Math.atan2(y - 100, x - 100);
+                        const offsetX = x + Math.cos(angle) * 25;
+                        const offsetY = y + Math.sin(angle) * 25;
+                        return (
+                          <text x={offsetX} y={offsetY} fill="#1F2937" fontSize="12" fontWeight="bold" textAnchor="middle" dominantBaseline="central">
+                            {name}: {value}
+                          </text>
+                        );
+                      }}
                       outerRadius={150}
                       fill="#8884d8"
                       dataKey="value"
@@ -710,7 +715,7 @@ export default function InventoryPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="category" />
                     <YAxis />
-                    <Tooltip formatter={(value) => `₹${value.toFixed(0)}K`} />
+                    <Tooltip formatter={(value) => `₹${typeof value === 'number' ? value.toFixed(0) : value}K`} />
                     <Bar dataKey="value" fill="#10B981" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
