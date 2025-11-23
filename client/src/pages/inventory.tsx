@@ -675,9 +675,9 @@ export default function InventoryPage() {
                       outerRadius={150}
                       fill="#8884d8"
                       dataKey="value"
-                      labelStyle={{ fontSize: '11px', fill: '#374151' }}
+                      labelStyle={{ fontSize: '12px', fill: '#000000', fontWeight: 'bold' }}
                     >
-                      {['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B88B', '#A9DFBF', '#F9E2AF', '#D7BDE2', '#A3E4D7', '#F5B7B1', '#D5F4E6', '#FADBD8', '#D6EADF', '#EBD6DC', '#FCE4EC', '#E0E0E0'].map((color, idx) => (
+                      {['#FF1744', '#00BCD4', '#1976D2', '#FF6F00', '#00796B', '#FDD835', '#7B1FA2', '#0097A7', '#E64A19', '#2E7D32', '#F57F17', '#512DA8', '#00838F', '#C2185B', '#00695C', '#D32F2F', '#004D40', '#6A1B9A', '#455A64', '#37474F'].map((color, idx) => (
                         <Cell key={`cell-${idx}`} fill={color} />
                       ))}
                     </Pie>
