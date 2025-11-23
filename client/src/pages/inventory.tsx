@@ -653,45 +653,29 @@ export default function InventoryPage() {
 
             {/* Charts */}
             <div className="grid grid-cols-1 gap-6">
-              {/* Category Distribution Pie Chart - Full Width */}
+              {/* Category Distribution Bar Chart */}
               <Card className="p-6 border-2 border-indigo-200">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-indigo-600" />
-                  Category Distribution
+                  Items Per Category
                 </h3>
-                <ResponsiveContainer width="100%" height={500}>
-                  <PieChart>
-                    <Pie
-                      data={Object.entries(itemsByCategory)
-                        .filter(([, items]) => items.length > 0)
-                        .map(([category, items]) => ({
-                          name: category,
-                          value: items.length,
-                        }))}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value, x, y }) => {
-                        const angle = Math.atan2(y - 100, x - 100);
-                        const offsetX = x + Math.cos(angle) * 25;
-                        const offsetY = y + Math.sin(angle) * 25;
-                        return (
-                          <text x={offsetX} y={offsetY} fill="#1F2937" fontSize="12" fontWeight="bold" textAnchor="middle" dominantBaseline="central">
-                            {name}: {value}
-                          </text>
-                        );
-                      }}
-                      outerRadius={150}
-                      fill="#8884d8"
-                      dataKey="value"
-                      minAngle={15}
-                    >
-                      {['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B88B', '#A9DFBF', '#F9E2AF', '#D7BDE2', '#A3E4D7', '#F5B7B1', '#D5F4E6', '#FADBD8', '#D6EADF', '#EBD6DC', '#FCE4EC', '#E0E0E0'].map((color, idx) => (
-                        <Cell key={`cell-${idx}`} fill={color} />
-                      ))}
-                    </Pie>
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart
+                    data={Object.entries(itemsByCategory)
+                      .filter(([, items]) => items.length > 0)
+                      .map(([category, items]) => ({
+                        category: category,
+                        count: items.length,
+                      }))
+                      .sort((a, b) => b.count - a.count)}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="category" type="category" width={120} />
                     <Tooltip formatter={(value) => `${value} items`} />
-                  </PieChart>
+                    <Bar dataKey="count" fill="#4F46E5" radius={[0, 8, 8, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </Card>
 
