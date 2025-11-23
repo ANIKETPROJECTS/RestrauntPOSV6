@@ -264,7 +264,7 @@ export default function InventoryPage() {
 
   const currentCategoryItems = selectedCategory ? itemsByCategory[selectedCategory] || [] : [];
 
-  const lowStockItems = filteredItems.filter(item => item.currentStock <= item.minStock);
+  const lowStockItems = filteredItems.filter(item => parseFloat(item.currentStock.toString()) < parseFloat(item.minStock.toString()));
   const totalValue = filteredItems.reduce((sum, item) => sum + (parseFloat(item.currentStock) * parseFloat(item.costPerUnit)), 0);
   const outOfStock = filteredItems.filter(item => parseFloat(item.currentStock) === 0).length;
 
@@ -449,12 +449,12 @@ export default function InventoryPage() {
                           .map(item => (
                             <TableRow
                               key={item.id}
-                              className={item.currentStock <= item.minStock ? "bg-destructive/10" : ""}
+                              className={parseFloat(item.currentStock.toString()) < parseFloat(item.minStock.toString()) ? "bg-destructive/10" : ""}
                               data-testid={`row-item-${item.id}`}
                             >
                               <TableCell className="font-medium">{item.name}</TableCell>
                               <TableCell className="text-center">
-                                <span className={item.currentStock <= item.minStock ? "font-bold text-destructive" : ""}>
+                                <span className={parseFloat(item.currentStock.toString()) < parseFloat(item.minStock.toString()) ? "font-bold text-destructive" : ""}>
                                   {item.currentStock}
                                 </span>
                               </TableCell>
@@ -525,7 +525,7 @@ export default function InventoryPage() {
                             <div className="space-y-1 text-xs mb-3">
                               <div className="flex justify-between">
                                 <span className="text-muted-foreground">Qty:</span>
-                                <span className={item.currentStock <= item.minStock ? "font-bold text-destructive" : "font-semibold text-green-600"}>
+                                <span className={parseFloat(item.currentStock.toString()) < parseFloat(item.minStock.toString()) ? "font-bold text-destructive" : "font-semibold text-green-600"}>
                                   {item.currentStock} {item.unit}
                                 </span>
                               </div>
@@ -731,7 +731,7 @@ export default function InventoryPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Current Stock</p>
-                    <p className={`font-semibold ${selectedItem.currentStock <= selectedItem.minStock ? "text-destructive" : ""}`}>
+                    <p className={`font-semibold ${parseFloat(selectedItem.currentStock.toString()) < parseFloat(selectedItem.minStock.toString()) ? "text-destructive" : ""}`}>
                       {selectedItem.currentStock} {selectedItem.unit}
                     </p>
                   </div>
