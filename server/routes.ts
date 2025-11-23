@@ -1333,6 +1333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/inventory", async (req, res) => {
     try {
       let items = await storage.getInventoryItems();
+      console.log(`[API] /api/inventory - Returned ${items.length} items`);
       
       // Apply search filter
       if (req.query.search) {

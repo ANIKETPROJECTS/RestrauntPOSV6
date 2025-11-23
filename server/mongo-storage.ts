@@ -434,13 +434,14 @@ export class MongoStorage implements IStorage {
 
   async getInventoryItems(): Promise<InventoryItem[]> {
     await this.ensureConnection();
-    const items = await mongodb.getCollection<InventoryItem>('inventoryItems').find().toArray();
+    const items = await mongodb.getCollection<InventoryItem>('inventory').find().toArray();
+    console.log(`[Inventory] Fetched ${items.length} items from MongoDB`);
     return items;
   }
 
   async getInventoryItem(id: string): Promise<InventoryItem | undefined> {
     await this.ensureConnection();
-    const item = await mongodb.getCollection<InventoryItem>('inventoryItems').findOne({ id } as any);
+    const item = await mongodb.getCollection<InventoryItem>('inventory').findOne({ id } as any);
     return item ?? undefined;
   }
 
@@ -458,13 +459,13 @@ export class MongoStorage implements IStorage {
       costPerUnit: item.costPerUnit ?? "0",
       lastUpdated: new Date(),
     };
-    await mongodb.getCollection<InventoryItem>('inventoryItems').insertOne(inventoryItem as any);
+    await mongodb.getCollection<InventoryItem>('inventory').insertOne(inventoryItem as any);
     return inventoryItem;
   }
 
   async updateInventoryItem(id: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined> {
     await this.ensureConnection();
-    const result = await mongodb.getCollection<InventoryItem>('inventoryItems').findOneAndUpdate(
+    const result = await mongodb.getCollection<InventoryItem>('inventory').findOneAndUpdate(
       { id } as any,
       { $set: { ...item, lastUpdated: new Date() } },
       { returnDocument: 'after' }
@@ -474,7 +475,7 @@ export class MongoStorage implements IStorage {
 
   async updateInventoryQuantity(id: string, quantity: string): Promise<InventoryItem | undefined> {
     await this.ensureConnection();
-    const result = await mongodb.getCollection<InventoryItem>('inventoryItems').findOneAndUpdate(
+    const result = await mongodb.getCollection<InventoryItem>('inventory').findOneAndUpdate(
       { id } as any,
       { $set: { currentStock: quantity, lastUpdated: new Date() } },
       { returnDocument: 'after' }
@@ -484,7 +485,7 @@ export class MongoStorage implements IStorage {
 
   async deleteInventoryItem(id: string): Promise<boolean> {
     await this.ensureConnection();
-    const result = await mongodb.getCollection<InventoryItem>('inventoryItems').deleteOne({ id } as any);
+    const result = await mongodb.getCollection<InventoryItem>('inventory').deleteOne({ id } as any);
     return result.deletedCount > 0;
   }
 
