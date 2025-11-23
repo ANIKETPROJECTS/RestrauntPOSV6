@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Search, AlertTriangle, History, Grid3x3, List, ChevronDown, ChevronUp, Eye, TrendingUp, Package, AlertCircle, Zap } from "lucide-react";
+import { Plus, Edit, Trash2, Search, AlertTriangle, History, Grid3x3, List, ChevronDown, ChevronUp, Eye, TrendingUp, Package, AlertCircle, Zap, ArrowLeft } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useLocation } from "wouter";
@@ -119,10 +119,10 @@ export default function InventoryPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("inventory");
   const [dateFilter, setDateFilter] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -257,10 +257,12 @@ export default function InventoryPage() {
   });
 
   const itemsByCategory = categories.filter(c => c !== "All").reduce((acc, cat) => {
-    const catItems = filteredItems.filter(item => item.category === cat);
+    const catItems = items.filter(item => item.category === cat);
     acc[cat] = catItems;
     return acc;
   }, {} as Record<string, InventoryItem[]>);
+
+  const currentCategoryItems = selectedCategory ? itemsByCategory[selectedCategory] || [] : [];
 
   const lowStockItems = filteredItems.filter(item => item.currentStock <= item.minStock);
   const totalValue = filteredItems.reduce((sum, item) => sum + (parseFloat(item.currentStock) * parseFloat(item.costPerUnit)), 0);
@@ -326,251 +328,281 @@ export default function InventoryPage() {
               </Card>
             </div>
 
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search items..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  data-testid="input-search"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => navigate("/inventory-history")}
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-history"
-                >
-                  <History className="h-4 w-4 mr-2" />
-                  History
-                </Button>
-                <Button
-                  onClick={() => setIsListView(!isListView)}
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-toggle-view"
-                >
-                  {isListView ? (
-                    <>
-                      <Grid3x3 className="h-4 w-4 mr-2" />
-                      Card View
-                    </>
-                  ) : (
-                    <>
-                      <List className="h-4 w-4 mr-2" />
-                      List View
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={() => {
-                    setEditingItem(null);
-                    form.reset();
-                    setImagePreview(null);
-                    setIsAddDialogOpen(true);
-                  }}
-                  data-testid="button-add-inventory"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Item
-                </Button>
-              </div>
-            </div>
-
-            {isListView ? (
-              <div className="border border-border rounded-lg overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-center">Current Stock</TableHead>
-                      <TableHead className="text-center">Unit</TableHead>
-                      <TableHead className="text-center">Min Stock</TableHead>
-                      <TableHead className="text-center">Cost/Unit</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredItems.map(item => (
-                      <TableRow
-                        key={item.id}
-                        className={item.currentStock <= item.minStock ? "bg-destructive/10" : ""}
-                        data-testid={`row-item-${item.id}`}
-                      >
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{item.category}</TableCell>
-                        <TableCell className="text-center">
-                          <span className={item.currentStock <= item.minStock ? "font-bold text-destructive" : ""}>
-                            {item.currentStock}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">{item.unit}</TableCell>
-                        <TableCell className="text-center">{item.minStock}</TableCell>
-                        <TableCell className="text-center">₹{parseFloat(item.costPerUnit.toString()).toFixed(2)}</TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex justify-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setSelectedItem(item);
-                                setIsDetailsDialogOpen(true);
-                              }}
-                              data-testid={`button-view-${item.id}`}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleEdit(item)}
-                              data-testid={`button-edit-${item.id}`}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => deleteMutation.mutate(item.id)}
-                              data-testid={`button-delete-${item.id}`}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {categories.filter(c => c !== "All").map(category => {
-                    const catItems = itemsByCategory[category] || [];
-                    const isExpanded = expandedCategories[category];
-                    
-                    return (
-                      <button
-                        key={category}
-                        onClick={() => setExpandedCategories(prev => ({
-                          ...prev,
-                          [category]: !prev[category]
-                        }))}
-                        className={`p-4 rounded-lg border-2 text-center transition-all hover:shadow-md ${
-                          isExpanded
-                            ? `${categoryColors[category as keyof typeof categoryColors] || categoryColors["Other"]} border-current`
-                            : `${categoryColors[category as keyof typeof categoryColors] || categoryColors["Other"]} hover:shadow-lg`
-                        }`}
-                        data-testid={`button-category-${category}`}
-                      >
-                        <h3 className="font-semibold text-sm text-gray-800 line-clamp-2 mb-2">{category}</h3>
-                        <Badge variant="secondary" className="text-xs">{catItems.length}</Badge>
-                      </button>
-                    );
-                  })}
+            {selectedCategory ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={() => setSelectedCategory(null)}
+                      variant="outline"
+                      size="sm"
+                      data-testid="button-back"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to Categories
+                    </Button>
+                    <h2 className="text-2xl font-bold text-gray-800">{selectedCategory}</h2>
+                  </div>
                 </div>
 
-                {Object.entries(itemsByCategory).map(([category, catItems]) => {
-                  if (!expandedCategories[category]) return null;
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search items in this category..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                      data-testid="input-search"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setIsListView(!isListView)}
+                      variant="outline"
+                      size="sm"
+                      data-testid="button-toggle-view"
+                    >
+                      {isListView ? (
+                        <>
+                          <Grid3x3 className="h-4 w-4 mr-2" />
+                          Card View
+                        </>
+                      ) : (
+                        <>
+                          <List className="h-4 w-4 mr-2" />
+                          List View
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setEditingItem(null);
+                        form.reset();
+                        setImagePreview(null);
+                        setIsAddDialogOpen(true);
+                      }}
+                      data-testid="button-add-inventory"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Item
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search categories..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => navigate("/inventory-history")}
+                    variant="outline"
+                    size="sm"
+                    data-testid="button-history"
+                  >
+                    <History className="h-4 w-4 mr-2" />
+                    History
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setEditingItem(null);
+                      form.reset();
+                      setImagePreview(null);
+                      setIsAddDialogOpen(true);
+                    }}
+                    data-testid="button-add-inventory"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Item
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {selectedCategory ? (
+              <>
+                {isListView ? (
+                  <div className="border border-border rounded-lg overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead className="text-center">Current Stock</TableHead>
+                          <TableHead className="text-center">Unit</TableHead>
+                          <TableHead className="text-center">Min Stock</TableHead>
+                          <TableHead className="text-center">Cost/Unit</TableHead>
+                          <TableHead className="text-center">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {currentCategoryItems
+                          .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .map(item => (
+                            <TableRow
+                              key={item.id}
+                              className={item.currentStock <= item.minStock ? "bg-destructive/10" : ""}
+                              data-testid={`row-item-${item.id}`}
+                            >
+                              <TableCell className="font-medium">{item.name}</TableCell>
+                              <TableCell className="text-center">
+                                <span className={item.currentStock <= item.minStock ? "font-bold text-destructive" : ""}>
+                                  {item.currentStock}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-center">{item.unit}</TableCell>
+                              <TableCell className="text-center">{item.minStock}</TableCell>
+                              <TableCell className="text-center">₹{parseFloat(item.costPerUnit.toString()).toFixed(2)}</TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex justify-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setSelectedItem(item);
+                                      setIsDetailsDialogOpen(true);
+                                    }}
+                                    data-testid={`button-view-${item.id}`}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEdit(item)}
+                                    data-testid={`button-edit-${item.id}`}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => deleteMutation.mutate(item.id)}
+                                    data-testid={`button-delete-${item.id}`}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {currentCategoryItems
+                      .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map(item => (
+                        <Card
+                          key={item.id}
+                          className="overflow-hidden hover:shadow-lg transition-shadow border-0 bg-white"
+                          data-testid={`card-item-${item.id}`}
+                        >
+                          <div className="p-3">
+                            {item.image ? (
+                              <div className="h-24 bg-muted rounded mb-2 overflow-hidden">
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded mb-2 flex items-center justify-center text-muted-foreground text-xs">
+                                No image
+                              </div>
+                            )}
+                            <h4 className="font-semibold text-sm line-clamp-2 mb-2 text-gray-800">{item.name}</h4>
+                            <div className="space-y-1 text-xs mb-3">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Qty:</span>
+                                <span className={item.currentStock <= item.minStock ? "font-bold text-destructive" : "font-semibold text-green-600"}>
+                                  {item.currentStock} {item.unit}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Price:</span>
+                                <span className="font-semibold text-blue-600">₹{parseFloat(item.costPerUnit.toString()).toFixed(2)}</span>
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="flex-1 h-7 text-xs"
+                                onClick={() => {
+                                  setSelectedItem(item);
+                                  setIsDetailsDialogOpen(true);
+                                }}
+                                data-testid={`button-view-card-${item.id}`}
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="flex-1 h-7 text-xs"
+                                onClick={() => handleEdit(item)}
+                                data-testid={`button-edit-card-${item.id}`}
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="flex-1 h-7 text-xs"
+                                onClick={() => deleteMutation.mutate(item.id)}
+                                data-testid={`button-delete-card-${item.id}`}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                  </div>
+                )}
+
+                {currentCategoryItems.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    No items found in this category
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {categories.filter(c => c !== "All").map(category => {
+                  const catItems = itemsByCategory[category] || [];
                   
                   return (
-                    <Card
-                      key={`expanded-${category}`}
-                      className={`overflow-hidden border-2 ${categoryColors[category as keyof typeof categoryColors] || categoryColors["Other"]}`}
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`p-4 rounded-lg border-2 text-center transition-all hover:shadow-lg ${
+                        categoryColors[category as keyof typeof categoryColors] || categoryColors["Other"]
+                      }`}
+                      data-testid={`button-category-${category}`}
                     >
-                      <div className="p-4 bg-white/50">
-                        <h3 className="font-semibold text-lg text-gray-800 mb-4">{category}</h3>
-                        {catItems.length > 0 ? (
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                            {catItems.map(item => (
-                              <Card
-                                key={item.id}
-                                className="overflow-hidden hover:shadow-lg transition-shadow border-0 bg-white"
-                                data-testid={`card-item-${item.id}`}
-                              >
-                                <div className="p-3">
-                                  {item.image ? (
-                                    <div className="h-24 bg-muted rounded mb-2 overflow-hidden">
-                                      <img
-                                        src={item.image}
-                                        alt={item.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <div className="h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded mb-2 flex items-center justify-center text-muted-foreground text-xs">
-                                      No image
-                                    </div>
-                                  )}
-                                  <h4 className="font-semibold text-sm line-clamp-2 mb-2 text-gray-800">{item.name}</h4>
-                                  <div className="space-y-1 text-xs mb-3">
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Qty:</span>
-                                      <span className={item.currentStock <= item.minStock ? "font-bold text-destructive" : "font-semibold text-green-600"}>
-                                        {item.currentStock} {item.unit}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Price:</span>
-                                      <span className="font-semibold text-blue-600">₹{parseFloat(item.costPerUnit.toString()).toFixed(2)}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="flex-1 h-7 text-xs"
-                                      onClick={() => {
-                                        setSelectedItem(item);
-                                        setIsDetailsDialogOpen(true);
-                                      }}
-                                      data-testid={`button-view-card-${item.id}`}
-                                    >
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="flex-1 h-7 text-xs"
-                                      onClick={() => handleEdit(item)}
-                                      data-testid={`button-edit-card-${item.id}`}
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="flex-1 h-7 text-xs"
-                                      onClick={() => deleteMutation.mutate(item.id)}
-                                      data-testid={`button-delete-card-${item.id}`}
-                                    >
-                                      <Trash2 className="h-3 w-3 text-destructive" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="p-8 text-center text-muted-foreground text-sm">
-                            No items in this category
-                          </div>
-                        )}
-                      </div>
-                    </Card>
+                      <h3 className="font-semibold text-sm text-gray-800 line-clamp-2 mb-2">{category}</h3>
+                      <Badge variant="secondary" className="text-xs">{catItems.length}</Badge>
+                    </button>
                   );
                 })}
               </div>
             )}
 
-            {filteredItems.length === 0 && (
+            {!selectedCategory && filteredItems.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
-                No items found matching your search
+                No items found
               </div>
             )}
           </TabsContent>
