@@ -38,3 +38,6 @@
     [x] - Updated billing.tsx to auto-fetch existing order when navigating with tableId but no orderId
     [x] - Added fetchTableOrder function to check table's currentOrderId and load existing order items
     [x] - Clicking on served table from digital menu now properly navigates to billing page
+    [x] - Enhanced fetchTableOrder to search active orders by tableId when currentOrderId is null
+    [x] - Added auto-fix for data inconsistency: updates table's currentOrderId when orphaned order found
+    [x] - Order items now properly load in billing page for digital menu orders

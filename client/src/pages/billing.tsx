@@ -106,12 +106,37 @@ export default function BillingPage() {
 
   const fetchTableOrder = async (tableId: string) => {
     try {
+      // First try to get the order from the table's currentOrderId
       const tableRes = await fetch(`/api/tables/${tableId}`);
       if (tableRes.ok) {
         const table = await tableRes.json();
         if (table.currentOrderId) {
           setCurrentOrderId(table.currentOrderId);
           fetchExistingOrder(table.currentOrderId);
+          return;
+        }
+      }
+      
+      // If no currentOrderId, search for active orders for this table
+      // This handles cases where digital menu orders exist but aren't linked
+      const ordersRes = await fetch(`/api/orders/active`);
+      if (ordersRes.ok) {
+        const orders = await ordersRes.json();
+        const tableOrder = orders.find((order: any) => order.tableId === tableId);
+        if (tableOrder) {
+          setCurrentOrderId(tableOrder.id);
+          fetchExistingOrder(tableOrder.id);
+          
+          // Fix the data inconsistency by updating the table's currentOrderId
+          try {
+            await fetch(`/api/tables/${tableId}/order`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderId: tableOrder.id })
+            });
+          } catch (e) {
+            console.error("Failed to sync table order link:", e);
+          }
         }
       }
     } catch (error) {
