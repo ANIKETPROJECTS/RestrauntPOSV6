@@ -741,7 +741,7 @@ export default function BillingPage() {
         description: `Payment of ₹${total.toFixed(2)} via ${paymentMethod.toUpperCase()} completed`,
       });
       
-      navigate("/");
+      navigate("/tables");
     } catch (error: any) {
       console.error("Checkout failed:", error);
       toast({
