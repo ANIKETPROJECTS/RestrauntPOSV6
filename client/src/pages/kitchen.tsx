@@ -407,7 +407,7 @@ export default function KitchenPage() {
                 {currentKOT.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">No current orders</div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
                     {currentKOT.map(({ order, items, tableNumber }) => (
                       <KitchenOrderCard
                         key={order.id}
@@ -433,7 +433,7 @@ export default function KitchenPage() {
                 {servedKOT.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">No served orders</div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
                     {servedKOT.map(({ order, items, tableNumber }) => (
                       <KitchenOrderCard
                         key={order.id}
@@ -459,7 +459,7 @@ export default function KitchenPage() {
                 {completedKOT.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">No completed orders</div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-60">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start opacity-60">
                     {completedKOT.map(({ order, items, tableNumber }) => (
                       <KitchenOrderCard
                         key={order.id}
@@ -521,6 +521,7 @@ function KitchenOrderCard({
   
   const shouldStartCollapsed = allServed || isPaid;
   const [isCollapsed, setIsCollapsed] = useState(shouldStartCollapsed);
+  const [isItemsCollapsed, setIsItemsCollapsed] = useState(false);
 
   const itemCount = items.length;
   const currentItemIds = items.map(i => i.id).sort();
@@ -584,20 +585,18 @@ function KitchenOrderCard({
 
   const hasAnyNewItems = items.some((item) => item.status === "new");
 
-  const handleStartAll = () => {
-    items.forEach((item) => {
-      if (item.status === "new") {
-        onItemStatusChange(item.id, "preparing");
-      }
-    });
+  const handleStartAll = async () => {
+    const newItems = items.filter(item => item.status === "new");
+    for (const item of newItems) {
+      await onItemStatusChange(item.id, "preparing");
+    }
   };
 
-  const handleMarkAllPrepared = () => {
-    items.forEach((item) => {
-      if (item.status !== "ready" && item.status !== "served") {
-        onItemStatusChange(item.id, "ready");
-      }
-    });
+  const handleMarkAllPrepared = async () => {
+    const pendingItems = items.filter(item => item.status !== "ready" && item.status !== "served");
+    for (const item of pendingItems) {
+      await onItemStatusChange(item.id, "ready");
+    }
   };
   
   return (
@@ -646,24 +645,22 @@ function KitchenOrderCard({
       </div>
 
       <div className="p-3 bg-card">
-        {shouldStartCollapsed && (
-          <div className="mb-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-between"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              data-testid={`button-toggle-items-${orderId}`}
-            >
-              <span className="text-sm font-medium text-muted-foreground">
-                {items.length} {items.length === 1 ? "item" : "items"}
-              </span>
-              {isCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </Button>
-          </div>
-        )}
+        <div className="mb-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-between"
+            onClick={() => setIsItemsCollapsed(!isItemsCollapsed)}
+            data-testid={`button-toggle-items-${orderId}`}
+          >
+            <span className="text-sm font-medium text-muted-foreground">
+              {items.length} {items.length === 1 ? "item" : "items"}
+            </span>
+            {isItemsCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </Button>
+        </div>
         
-        {!isCollapsed && (
+        {!isItemsCollapsed && (
           <div className="space-y-2 mb-3">
             {items.map((item) => (
               <div
