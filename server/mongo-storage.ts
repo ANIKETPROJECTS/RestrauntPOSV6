@@ -298,6 +298,14 @@ export class MongoStorage implements IStorage {
     return orders;
   }
 
+  async getDeliveryOrders(): Promise<Order[]> {
+    await this.ensureConnection();
+    const orders = await mongodb.getCollection<Order>('orders').find({
+      orderType: "delivery"
+    } as any).sort({ createdAt: -1 } as any).toArray();
+    return orders;
+  }
+
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
     await this.ensureConnection();
     const id = randomUUID();

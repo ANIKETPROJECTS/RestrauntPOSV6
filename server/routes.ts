@@ -414,6 +414,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(orders);
   });
 
+  app.get("/api/orders/delivery", async (req, res) => {
+    const orders = await storage.getDeliveryOrders();
+    res.json(orders);
+  });
+
   app.get("/api/orders/:id/invoice/pdf", async (req, res) => {
     try {
       const order = await storage.getOrder(req.params.id);
