@@ -35,6 +35,8 @@ import {
   type InsertFeedback,
   type InventoryUsage,
   type InsertInventoryUsage,
+  type DeliveryPerson,
+  type InsertDeliveryPerson,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -162,6 +164,13 @@ export interface IStorage {
   createInventoryUsage(usage: InsertInventoryUsage): Promise<InventoryUsage>;
   getMostUsedItems(limit?: number): Promise<Array<{ itemId: string; itemName: string; totalQuantity: string; count: number }>>;
   
+  getDeliveryPersons(): Promise<DeliveryPerson[]>;
+  getDeliveryPerson(id: string): Promise<DeliveryPerson | undefined>;
+  createDeliveryPerson(person: InsertDeliveryPerson): Promise<DeliveryPerson>;
+  updateDeliveryPerson(id: string, person: Partial<InsertDeliveryPerson>): Promise<DeliveryPerson | undefined>;
+  deleteDeliveryPerson(id: string): Promise<boolean>;
+  assignDeliveryPerson(orderId: string, deliveryPersonId: string | null): Promise<Order | undefined>;
+  
   seedInventoryAndRecipes?(): Promise<{ inventoryCount: number; recipesCount: number; suppliersCount: number }>;
 }
 
@@ -176,6 +185,7 @@ export class MemStorage implements IStorage {
   private invoices: Map<string, Invoice>;
   private reservations: Map<string, Reservation>;
   private settings: Map<string, string>;
+  private deliveryPersons: Map<string, DeliveryPerson>;
 
   constructor() {
     this.users = new Map();
@@ -188,6 +198,7 @@ export class MemStorage implements IStorage {
     this.invoices = new Map();
     this.reservations = new Map();
     this.settings = new Map();
+    this.deliveryPersons = new Map();
     this.seedData();
   }
 
@@ -871,6 +882,55 @@ export class MemStorage implements IStorage {
 
   async setSetting(key: string, value: string): Promise<void> {
     this.settings.set(key, value);
+  }
+
+  async getDeliveryPersons(): Promise<DeliveryPerson[]> {
+    return Array.from(this.deliveryPersons.values());
+  }
+
+  async getDeliveryPerson(id: string): Promise<DeliveryPerson | undefined> {
+    return this.deliveryPersons.get(id);
+  }
+
+  async createDeliveryPerson(person: InsertDeliveryPerson): Promise<DeliveryPerson> {
+    const id = randomUUID();
+    const deliveryPerson: DeliveryPerson = {
+      id,
+      name: person.name,
+      phone: person.phone,
+      status: person.status || "available",
+      createdAt: new Date(),
+    };
+    this.deliveryPersons.set(id, deliveryPerson);
+    return deliveryPerson;
+  }
+
+  async updateDeliveryPerson(id: string, person: Partial<InsertDeliveryPerson>): Promise<DeliveryPerson | undefined> {
+    const existing = this.deliveryPersons.get(id);
+    if (!existing) return undefined;
+    const updated: DeliveryPerson = {
+      ...existing,
+      name: person.name ?? existing.name,
+      phone: person.phone ?? existing.phone,
+      status: person.status ?? existing.status,
+    };
+    this.deliveryPersons.set(id, updated);
+    return updated;
+  }
+
+  async deleteDeliveryPerson(id: string): Promise<boolean> {
+    return this.deliveryPersons.delete(id);
+  }
+
+  async assignDeliveryPerson(orderId: string, deliveryPersonId: string | null): Promise<Order | undefined> {
+    const order = this.orders.get(orderId);
+    if (!order) return undefined;
+    const updated: Order = {
+      ...order,
+      deliveryPersonId,
+    };
+    this.orders.set(orderId, updated);
+    return updated;
   }
 }
 

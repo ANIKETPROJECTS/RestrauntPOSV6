@@ -419,6 +419,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(orders);
   });
 
+  app.get("/api/delivery-persons", async (req, res) => {
+    const persons = await storage.getDeliveryPersons();
+    res.json(persons);
+  });
+
+  app.get("/api/delivery-persons/:id", async (req, res) => {
+    const person = await storage.getDeliveryPerson(req.params.id);
+    if (!person) {
+      return res.status(404).json({ error: "Delivery person not found" });
+    }
+    res.json(person);
+  });
+
+  app.post("/api/delivery-persons", async (req, res) => {
+    try {
+      const person = await storage.createDeliveryPerson(req.body);
+      res.status(201).json(person);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create delivery person" });
+    }
+  });
+
+  app.patch("/api/delivery-persons/:id", async (req, res) => {
+    const person = await storage.updateDeliveryPerson(req.params.id, req.body);
+    if (!person) {
+      return res.status(404).json({ error: "Delivery person not found" });
+    }
+    res.json(person);
+  });
+
+  app.delete("/api/delivery-persons/:id", async (req, res) => {
+    const success = await storage.deleteDeliveryPerson(req.params.id);
+    if (!success) {
+      return res.status(404).json({ error: "Delivery person not found" });
+    }
+    res.status(204).send();
+  });
+
+  app.patch("/api/orders/:id/assign-driver", async (req, res) => {
+    const { deliveryPersonId } = req.body;
+    
+    const existingOrder = await storage.getOrder(req.params.id);
+    if (!existingOrder) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    
+    if (existingOrder.orderType !== "delivery") {
+      return res.status(400).json({ error: "Can only assign drivers to delivery orders" });
+    }
+    
+    if (deliveryPersonId) {
+      const driver = await storage.getDeliveryPerson(deliveryPersonId);
+      if (!driver) {
+        return res.status(400).json({ error: "Delivery person not found" });
+      }
+    }
+    
+    const order = await storage.assignDeliveryPerson(req.params.id, deliveryPersonId);
+    if (!order) {
+      return res.status(500).json({ error: "Failed to assign driver" });
+    }
+    res.json(order);
+  });
+
   app.get("/api/orders/:id/invoice/pdf", async (req, res) => {
     try {
       const order = await storage.getOrder(req.params.id);

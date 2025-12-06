@@ -36,6 +36,8 @@ import {
   type InsertFeedback,
   type InventoryUsage,
   type InsertInventoryUsage,
+  type DeliveryPerson,
+  type InsertDeliveryPerson,
 } from "@shared/schema";
 import { IStorage } from './storage';
 import { randomUUID } from 'crypto';
@@ -1213,5 +1215,63 @@ export class MongoStorage implements IStorage {
       recipesCount: recipesCreated,
       suppliersCount: 2,
     };
+  }
+
+  async getDeliveryPersons(): Promise<DeliveryPerson[]> {
+    await this.ensureConnection();
+    return await mongodb.getCollection<DeliveryPerson>('deliveryPersons').find().toArray();
+  }
+
+  async getDeliveryPerson(id: string): Promise<DeliveryPerson | undefined> {
+    await this.ensureConnection();
+    const person = await mongodb.getCollection<DeliveryPerson>('deliveryPersons').findOne({ id } as any);
+    return person ?? undefined;
+  }
+
+  async createDeliveryPerson(person: InsertDeliveryPerson): Promise<DeliveryPerson> {
+    await this.ensureConnection();
+    const id = randomUUID();
+    const newPerson: DeliveryPerson = {
+      id,
+      name: person.name,
+      phone: person.phone,
+      status: person.status || "available",
+      createdAt: new Date(),
+    };
+    await mongodb.getCollection<DeliveryPerson>('deliveryPersons').insertOne(newPerson as any);
+    return newPerson;
+  }
+
+  async updateDeliveryPerson(id: string, person: Partial<InsertDeliveryPerson>): Promise<DeliveryPerson | undefined> {
+    await this.ensureConnection();
+    const collection = mongodb.getCollection<DeliveryPerson>('deliveryPersons');
+    const existing = await collection.findOne({ id } as any);
+    if (!existing) return undefined;
+    
+    const update: any = {};
+    if (person.name !== undefined) update.name = person.name;
+    if (person.phone !== undefined) update.phone = person.phone;
+    if (person.status !== undefined) update.status = person.status;
+    
+    await collection.updateOne({ id } as any, { $set: update });
+    const updated = await collection.findOne({ id } as any);
+    return updated ?? undefined;
+  }
+
+  async deleteDeliveryPerson(id: string): Promise<boolean> {
+    await this.ensureConnection();
+    const result = await mongodb.getCollection<DeliveryPerson>('deliveryPersons').deleteOne({ id } as any);
+    return result.deletedCount > 0;
+  }
+
+  async assignDeliveryPerson(orderId: string, deliveryPersonId: string | null): Promise<Order | undefined> {
+    await this.ensureConnection();
+    const collection = mongodb.getCollection<Order>('orders');
+    const existing = await collection.findOne({ id: orderId } as any);
+    if (!existing) return undefined;
+    
+    await collection.updateOne({ id: orderId } as any, { $set: { deliveryPersonId } });
+    const updated = await collection.findOne({ id: orderId } as any);
+    return updated ?? undefined;
   }
 }

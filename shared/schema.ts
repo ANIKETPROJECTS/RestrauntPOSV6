@@ -447,6 +447,23 @@ export const categoryUnits: Record<string, string[]> = {
   "Other": ["kg", "g", "L", "ml", "pcs", "box"],
 };
 
+// DeliveryPerson types
+export interface DeliveryPerson {
+  id: string;
+  name: string;
+  phone: string;
+  status: string;
+  createdAt: Date;
+}
+
+export const insertDeliveryPersonSchema = z.object({
+  name: z.string(),
+  phone: z.string(),
+  status: z.string().default("available"),
+});
+
+export type InsertDeliveryPerson = z.infer<typeof insertDeliveryPersonSchema>;
+
 // Digital Menu Order types
 export interface DigitalMenuOrderItem {
   menuItemId: string;

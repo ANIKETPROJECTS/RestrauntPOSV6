@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Phone, MapPin, Clock, Search, ArrowUpDown, Loader2 } from "lucide-react";
-import type { Order, OrderItem } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Phone, MapPin, Clock, Search, ArrowUpDown, Loader2, User, Plus } from "lucide-react";
+import type { Order, OrderItem, DeliveryPerson } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 function formatRelativeTime(date: Date | string): string {
   const now = new Date();
@@ -54,9 +63,64 @@ export default function DeliveryPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
   const [activeTab, setActiveTab] = useState("active");
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [addDriverDialogOpen, setAddDriverDialogOpen] = useState(false);
+  const [newDriverName, setNewDriverName] = useState("");
+  const [newDriverPhone, setNewDriverPhone] = useState("");
+  const { toast } = useToast();
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ["/api/orders/delivery"],
+  });
+
+  const { data: deliveryPersons = [] } = useQuery<DeliveryPerson[]>({
+    queryKey: ["/api/delivery-persons"],
+  });
+
+  const assignDriverMutation = useMutation({
+    mutationFn: async ({ orderId, deliveryPersonId }: { orderId: string; deliveryPersonId: string }) => {
+      return apiRequest("PATCH", `/api/orders/${orderId}/assign-driver`, { deliveryPersonId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders/delivery"] });
+      setAssignDialogOpen(false);
+      setSelectedOrderId(null);
+      toast({
+        title: "Driver Assigned",
+        description: "The delivery driver has been assigned successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to assign driver. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createDriverMutation = useMutation({
+    mutationFn: async (data: { name: string; phone: string }) => {
+      return apiRequest("POST", "/api/delivery-persons", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/delivery-persons"] });
+      setAddDriverDialogOpen(false);
+      setNewDriverName("");
+      setNewDriverPhone("");
+      toast({
+        title: "Driver Added",
+        description: "New delivery driver has been added successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add driver. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const filteredAndSortedOrders = useMemo(() => {
@@ -142,6 +206,33 @@ export default function DeliveryPage() {
         { value: "completed", label: "Completed" },
       ];
 
+  const handleAssignClick = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setAssignDialogOpen(true);
+  };
+
+  const handleDriverSelect = (deliveryPersonId: string) => {
+    if (selectedOrderId) {
+      assignDriverMutation.mutate({ orderId: selectedOrderId, deliveryPersonId });
+    }
+  };
+
+  const handleAddDriver = () => {
+    if (newDriverName.trim() && newDriverPhone.trim()) {
+      createDriverMutation.mutate({ name: newDriverName.trim(), phone: newDriverPhone.trim() });
+    }
+  };
+
+  const getDriverName = (deliveryPersonId: string | null): string => {
+    if (!deliveryPersonId) return "";
+    const driver = deliveryPersons.find(p => p.id === deliveryPersonId);
+    return driver?.name || "Unknown Driver";
+  };
+
+  const getActiveDeliveriesCount = (driverId: string): number => {
+    return orders.filter(o => o.deliveryPersonId === driverId && isActiveStatus(o.status)).length;
+  };
+
   return (
     <div className="h-screen flex flex-col">
       <AppHeader title="Delivery Management" />
@@ -205,6 +296,8 @@ export default function DeliveryPage() {
                 isLoading={isLoading} 
                 getStatusBadge={getStatusBadge}
                 emptyMessage="No active delivery orders"
+                onAssignClick={handleAssignClick}
+                getDriverName={getDriverName}
               />
             </TabsContent>
 
@@ -214,33 +307,157 @@ export default function DeliveryPage() {
                 isLoading={isLoading} 
                 getStatusBadge={getStatusBadge}
                 emptyMessage="No completed delivery orders"
+                onAssignClick={handleAssignClick}
+                getDriverName={getDriverName}
               />
             </TabsContent>
           </Tabs>
         </div>
 
         <div className="w-80 border-l border-border p-6 bg-muted/30">
-          <h3 className="text-lg font-semibold mb-4">Delivery Personnel</h3>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <h3 className="text-lg font-semibold">Delivery Personnel</h3>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              onClick={() => setAddDriverDialogOpen(true)}
+              data-testid="button-add-driver"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
           <div className="space-y-3">
-            {["Driver 1", "Driver 2", "Driver 3"].map((driver, index) => (
-              <div key={index} className="bg-card border border-card-border rounded-lg p-4">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <h4 className="font-medium">{driver}</h4>
-                  <Badge variant="secondary" className="bg-success/20 text-success">
-                    Available
-                  </Badge>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3 w-3" />
-                    <span>2 deliveries today</span>
-                  </div>
-                </div>
+            {deliveryPersons.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No delivery personnel</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-3"
+                  onClick={() => setAddDriverDialogOpen(true)}
+                  data-testid="button-add-first-driver"
+                >
+                  Add Driver
+                </Button>
               </div>
-            ))}
+            ) : (
+              deliveryPersons.map((driver) => {
+                const activeDeliveries = getActiveDeliveriesCount(driver.id);
+                return (
+                  <div key={driver.id} className="bg-card border border-card-border rounded-lg p-4" data-testid={`driver-card-${driver.id}`}>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h4 className="font-medium">{driver.name}</h4>
+                      <Badge 
+                        variant="secondary" 
+                        className={activeDeliveries > 0 ? "bg-warning/20 text-warning" : "bg-success/20 text-success"}
+                      >
+                        {activeDeliveries > 0 ? `${activeDeliveries} Active` : "Available"}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3 w-3" />
+                        <span>{driver.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3 w-3" />
+                        <span>{activeDeliveries} active {activeDeliveries === 1 ? "delivery" : "deliveries"}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
+
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Delivery Driver</DialogTitle>
+            <DialogDescription>
+              Select a driver to assign to this delivery order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            {deliveryPersons.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground">
+                <p className="mb-3">No drivers available. Add a driver first.</p>
+                <Button onClick={() => { setAssignDialogOpen(false); setAddDriverDialogOpen(true); }}>
+                  Add Driver
+                </Button>
+              </div>
+            ) : (
+              deliveryPersons.map((driver) => {
+                const activeDeliveries = getActiveDeliveriesCount(driver.id);
+                return (
+                  <Button
+                    key={driver.id}
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={() => handleDriverSelect(driver.id)}
+                    disabled={assignDriverMutation.isPending}
+                    data-testid={`select-driver-${driver.id}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      <span>{driver.name}</span>
+                    </div>
+                    <Badge variant="secondary" className={activeDeliveries > 0 ? "bg-warning/20 text-warning" : "bg-success/20 text-success"}>
+                      {activeDeliveries > 0 ? `${activeDeliveries} Active` : "Available"}
+                    </Badge>
+                  </Button>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addDriverDialogOpen} onOpenChange={setAddDriverDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Delivery Driver</DialogTitle>
+            <DialogDescription>
+              Add a new delivery driver to your team.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Name</label>
+              <Input
+                placeholder="Driver name"
+                value={newDriverName}
+                onChange={(e) => setNewDriverName(e.target.value)}
+                data-testid="input-driver-name"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Phone</label>
+              <Input
+                placeholder="Phone number"
+                value={newDriverPhone}
+                onChange={(e) => setNewDriverPhone(e.target.value)}
+                data-testid="input-driver-phone"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAddDriverDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAddDriver}
+                disabled={!newDriverName.trim() || !newDriverPhone.trim() || createDriverMutation.isPending}
+                data-testid="button-save-driver"
+              >
+                {createDriverMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add Driver"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -250,9 +467,11 @@ interface OrdersListProps {
   isLoading: boolean;
   getStatusBadge: (status: string) => JSX.Element;
   emptyMessage: string;
+  onAssignClick: (orderId: string) => void;
+  getDriverName: (deliveryPersonId: string | null) => string;
 }
 
-function OrdersList({ orders, isLoading, getStatusBadge, emptyMessage }: OrdersListProps) {
+function OrdersList({ orders, isLoading, getStatusBadge, emptyMessage, onAssignClick, getDriverName }: OrdersListProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -273,7 +492,13 @@ function OrdersList({ orders, isLoading, getStatusBadge, emptyMessage }: OrdersL
   return (
     <div className="space-y-3">
       {orders.map((order) => (
-        <OrderCard key={order.id} order={order} getStatusBadge={getStatusBadge} />
+        <OrderCard 
+          key={order.id} 
+          order={order} 
+          getStatusBadge={getStatusBadge} 
+          onAssignClick={onAssignClick}
+          getDriverName={getDriverName}
+        />
       ))}
     </div>
   );
@@ -282,15 +507,18 @@ function OrdersList({ orders, isLoading, getStatusBadge, emptyMessage }: OrdersL
 interface OrderCardProps {
   order: Order;
   getStatusBadge: (status: string) => JSX.Element;
+  onAssignClick: (orderId: string) => void;
+  getDriverName: (deliveryPersonId: string | null) => string;
 }
 
-function OrderCard({ order, getStatusBadge }: OrderCardProps) {
+function OrderCard({ order, getStatusBadge, onAssignClick, getDriverName }: OrderCardProps) {
   const { data: orderItems = [] } = useQuery<OrderItem[]>({
     queryKey: ["/api/orders", order.id, "items"],
   });
 
   const itemCount = orderItems.reduce((sum, item) => sum + item.quantity, 0);
   const hasAssignedDriver = !!order.deliveryPersonId;
+  const driverName = getDriverName(order.deliveryPersonId);
 
   return (
     <div
@@ -326,15 +554,16 @@ function OrderCard({ order, getStatusBadge }: OrderCardProps) {
       <div className="flex items-center justify-between gap-2 pt-3 border-t border-border">
         <div className="text-sm">
           <span className="text-muted-foreground">{itemCount} item{itemCount !== 1 ? "s" : ""} </span>
-          <span className="font-semibold">₹{parseFloat(order.total).toFixed(2)}</span>
+          <span className="font-semibold">{"\u20B9"}{parseFloat(order.total).toFixed(2)}</span>
         </div>
         {!hasAssignedDriver && isActiveStatus(order.status) ? (
-          <Button size="sm" data-testid={`button-assign-${order.id}`}>
+          <Button size="sm" onClick={() => onAssignClick(order.id)} data-testid={`button-assign-${order.id}`}>
             Assign Driver
           </Button>
         ) : hasAssignedDriver ? (
-          <div className="text-sm text-muted-foreground">
-            Assigned to: <span className="font-medium text-foreground">Driver</span>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4" />
+            <span>Assigned to: <span className="font-medium text-foreground">{driverName}</span></span>
           </div>
         ) : null}
       </div>
