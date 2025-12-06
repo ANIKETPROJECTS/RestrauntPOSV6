@@ -1,6 +1,8 @@
 import { Users, Clock, FileText, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+
+const tableTimerStore = new Map<string, { startTime: number; orderId: string | null }>();
 
 interface TableCardProps {
   id: string;
@@ -71,19 +73,34 @@ export default function TableCard({
   
   useEffect(() => {
     if (!orderStartTime || (status !== "occupied" && status !== "preparing" && status !== "ready" && status !== "served")) {
+      if (tableTimerStore.has(id)) {
+        tableTimerStore.delete(id);
+      }
+      setElapsedTime(0);
       return;
     }
 
+    const existingTimer = tableTimerStore.get(id);
+    const currentOrderId = orderStartTime;
+    
+    if (!existingTimer || existingTimer.orderId !== currentOrderId) {
+      tableTimerStore.set(id, {
+        startTime: Date.now(),
+        orderId: currentOrderId
+      });
+    }
+
+    const timerData = tableTimerStore.get(id)!;
+
     const updateTime = () => {
-      const startTime = new Date(orderStartTime).getTime();
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const elapsed = Math.floor((Date.now() - timerData.startTime) / 1000);
       setElapsedTime(Math.max(0, elapsed));
     };
 
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
-  }, [orderStartTime, status]);
+  }, [id, orderStartTime, status]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
