@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,11 +7,37 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { LogOut } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [restaurantName, setRestaurantName] = useState("My Restaurant");
   const [email, setEmail] = useState("contact@restaurant.com");
   const [phone, setPhone] = useState("+91 9876543210");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await apiRequest("POST", "/api/auth/logout");
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out.",
+      });
+      setLocation("/login");
+    } catch (error) {
+      toast({
+        title: "Logout failed",
+        description: "Failed to logout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <div className="h-screen flex flex-col">
@@ -183,6 +210,27 @@ export default function SettingsPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        <Separator className="my-8" />
+
+        <div className="bg-card rounded-lg border border-card-border p-6 max-w-2xl">
+          <h3 className="text-lg font-semibold mb-4">Account</h3>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="font-medium">Logout</p>
+              <p className="text-sm text-muted-foreground">Sign out of your account</p>
+            </div>
+            <Button
+              variant="destructive"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              {isLoggingOut ? "Logging out..." : "Logout"}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

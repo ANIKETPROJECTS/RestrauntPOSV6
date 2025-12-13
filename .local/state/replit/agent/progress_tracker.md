@@ -66,3 +66,9 @@
     [x] - Login page accessible with demo credentials (admin / admin123)
     [x] - WebSocket connected successfully
     [x] - All systems operational ✅
+[x] 603. December 13, 2025 - Added Logout button to Settings page:
+    [x] - Added logout button in Account section at bottom of Settings page
+    [x] - Logout button calls /api/auth/logout endpoint
+    [x] - Shows loading state while logging out
+    [x] - Displays success toast and redirects to login page after logout
+    [x] - Uses destructive variant for visual emphasis ✅
