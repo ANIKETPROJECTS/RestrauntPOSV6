@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -6,9 +6,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
+import DbErrorPage from "@/pages/db-error";
 import DashboardPage from "@/pages/dashboard";
 import BillingPage from "@/pages/billing";
 import TablesPage from "@/pages/tables";
@@ -60,85 +64,144 @@ import IntegrationsPage from "@/pages/integrations";
 import DatabasePage from "@/pages/database";
 import DigitalMenuOrdersPage from "@/pages/digital-menu-orders";
 
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [location, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && location !== "/login" && location !== "/db-error") {
+      setLocation("/login");
+    }
+  }, [isAuthenticated, isLoading, location, setLocation]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return <Component />;
+}
+
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={DashboardPage} />
       <Route path="/login" component={LoginPage} />
-      <Route path="/billing" component={BillingPage} />
-      <Route path="/tables" component={TablesPage} />
-      <Route path="/kitchen" component={KitchenPage} />
-      <Route path="/menu" component={MenuPage} />
-      <Route path="/reports" component={ReportsPage} />
-      <Route path="/settings" component={SettingsPage} />
-      <Route path="/delivery" component={DeliveryPage} />
-      <Route path="/online-orders" component={OnlineOrdersPage} />
-      <Route path="/customers" component={CustomersPage} />
-      <Route path="/loyalty" component={LoyaltyPage} />
-      <Route path="/inventory" component={InventoryPage} />
-      <Route path="/inventory-history" component={InventoryHistoryPage} />
-      <Route path="/purchase-orders" component={PurchaseOrdersPage} />
-      <Route path="/suppliers" component={SuppliersPage} />
-      <Route path="/staff" component={StaffPage} />
-      <Route path="/attendance" component={AttendancePage} />
-      <Route path="/reservations" component={ReservationsPage} />
-      <Route path="/expenses" component={ExpensesPage} />
-      <Route path="/payment-settlement" component={PaymentSettlementPage} />
-      <Route path="/accounting" component={AccountingPage} />
-      <Route path="/tax-reports" component={TaxReportsPage} />
-      <Route path="/invoices" component={InvoicesPage} />
-      <Route path="/day-end-settlement" component={DayEndSettlementPage} />
-      <Route path="/offers" component={OffersPage} />
-      <Route path="/coupons" component={CouponsPage} />
-      <Route path="/feedback" component={FeedbackPage} />
-      <Route path="/analytics" component={AnalyticsPage} />
-      <Route path="/sales-detailed" component={SalesDetailedPage} />
-      <Route path="/item-performance" component={ItemPerformancePage} />
-      <Route path="/kitchen-performance" component={KitchenPerformancePage} />
-      <Route path="/wastage" component={WastagePage} />
-      <Route path="/multi-location" component={MultiLocationPage} />
-      <Route path="/user-roles" component={UserRolesPage} />
-      <Route path="/audit-logs" component={AuditLogsPage} />
-      <Route path="/notifications" component={NotificationsPage} />
-      <Route path="/help" component={HelpPage} />
-      <Route path="/profile" component={ProfilePage} />
-      <Route path="/backup" component={BackupPage} />
-      <Route path="/qr-codes" component={QRCodesPage} />
-      <Route path="/waiting-list" component={WaitingListPage} />
-      <Route path="/events" component={EventsPage} />
-      <Route path="/gift-cards" component={GiftCardsPage} />
-      <Route path="/commission" component={CommissionPage} />
-      <Route path="/printer-config" component={PrinterConfigPage} />
-      <Route path="/email-templates" component={EmailTemplatesPage} />
-      <Route path="/marketing" component={MarketingPage} />
-      <Route path="/integrations" component={IntegrationsPage} />
-      <Route path="/database" component={DatabasePage} />
-      <Route path="/digital-menu-orders" component={DigitalMenuOrdersPage} />
+      <Route path="/db-error" component={DbErrorPage} />
+      <Route path="/">{() => <ProtectedRoute component={DashboardPage} />}</Route>
+      <Route path="/billing">{() => <ProtectedRoute component={BillingPage} />}</Route>
+      <Route path="/tables">{() => <ProtectedRoute component={TablesPage} />}</Route>
+      <Route path="/kitchen">{() => <ProtectedRoute component={KitchenPage} />}</Route>
+      <Route path="/menu">{() => <ProtectedRoute component={MenuPage} />}</Route>
+      <Route path="/reports">{() => <ProtectedRoute component={ReportsPage} />}</Route>
+      <Route path="/settings">{() => <ProtectedRoute component={SettingsPage} />}</Route>
+      <Route path="/delivery">{() => <ProtectedRoute component={DeliveryPage} />}</Route>
+      <Route path="/online-orders">{() => <ProtectedRoute component={OnlineOrdersPage} />}</Route>
+      <Route path="/customers">{() => <ProtectedRoute component={CustomersPage} />}</Route>
+      <Route path="/loyalty">{() => <ProtectedRoute component={LoyaltyPage} />}</Route>
+      <Route path="/inventory">{() => <ProtectedRoute component={InventoryPage} />}</Route>
+      <Route path="/inventory-history">{() => <ProtectedRoute component={InventoryHistoryPage} />}</Route>
+      <Route path="/purchase-orders">{() => <ProtectedRoute component={PurchaseOrdersPage} />}</Route>
+      <Route path="/suppliers">{() => <ProtectedRoute component={SuppliersPage} />}</Route>
+      <Route path="/staff">{() => <ProtectedRoute component={StaffPage} />}</Route>
+      <Route path="/attendance">{() => <ProtectedRoute component={AttendancePage} />}</Route>
+      <Route path="/reservations">{() => <ProtectedRoute component={ReservationsPage} />}</Route>
+      <Route path="/expenses">{() => <ProtectedRoute component={ExpensesPage} />}</Route>
+      <Route path="/payment-settlement">{() => <ProtectedRoute component={PaymentSettlementPage} />}</Route>
+      <Route path="/accounting">{() => <ProtectedRoute component={AccountingPage} />}</Route>
+      <Route path="/tax-reports">{() => <ProtectedRoute component={TaxReportsPage} />}</Route>
+      <Route path="/invoices">{() => <ProtectedRoute component={InvoicesPage} />}</Route>
+      <Route path="/day-end-settlement">{() => <ProtectedRoute component={DayEndSettlementPage} />}</Route>
+      <Route path="/offers">{() => <ProtectedRoute component={OffersPage} />}</Route>
+      <Route path="/coupons">{() => <ProtectedRoute component={CouponsPage} />}</Route>
+      <Route path="/feedback">{() => <ProtectedRoute component={FeedbackPage} />}</Route>
+      <Route path="/analytics">{() => <ProtectedRoute component={AnalyticsPage} />}</Route>
+      <Route path="/sales-detailed">{() => <ProtectedRoute component={SalesDetailedPage} />}</Route>
+      <Route path="/item-performance">{() => <ProtectedRoute component={ItemPerformancePage} />}</Route>
+      <Route path="/kitchen-performance">{() => <ProtectedRoute component={KitchenPerformancePage} />}</Route>
+      <Route path="/wastage">{() => <ProtectedRoute component={WastagePage} />}</Route>
+      <Route path="/multi-location">{() => <ProtectedRoute component={MultiLocationPage} />}</Route>
+      <Route path="/user-roles">{() => <ProtectedRoute component={UserRolesPage} />}</Route>
+      <Route path="/audit-logs">{() => <ProtectedRoute component={AuditLogsPage} />}</Route>
+      <Route path="/notifications">{() => <ProtectedRoute component={NotificationsPage} />}</Route>
+      <Route path="/help">{() => <ProtectedRoute component={HelpPage} />}</Route>
+      <Route path="/profile">{() => <ProtectedRoute component={ProfilePage} />}</Route>
+      <Route path="/backup">{() => <ProtectedRoute component={BackupPage} />}</Route>
+      <Route path="/qr-codes">{() => <ProtectedRoute component={QRCodesPage} />}</Route>
+      <Route path="/waiting-list">{() => <ProtectedRoute component={WaitingListPage} />}</Route>
+      <Route path="/events">{() => <ProtectedRoute component={EventsPage} />}</Route>
+      <Route path="/gift-cards">{() => <ProtectedRoute component={GiftCardsPage} />}</Route>
+      <Route path="/commission">{() => <ProtectedRoute component={CommissionPage} />}</Route>
+      <Route path="/printer-config">{() => <ProtectedRoute component={PrinterConfigPage} />}</Route>
+      <Route path="/email-templates">{() => <ProtectedRoute component={EmailTemplatesPage} />}</Route>
+      <Route path="/marketing">{() => <ProtectedRoute component={MarketingPage} />}</Route>
+      <Route path="/integrations">{() => <ProtectedRoute component={IntegrationsPage} />}</Route>
+      <Route path="/database">{() => <ProtectedRoute component={DatabasePage} />}</Route>
+      <Route path="/digital-menu-orders">{() => <ProtectedRoute component={DigitalMenuOrdersPage} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function App() {
-  useWebSocket();
+function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
   
+  const isPublicRoute = location === "/login" || location === "/db-error";
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (isPublicRoute || !isAuthenticated) {
+    return <>{children}</>;
+  }
+
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
 
   return (
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <main className="flex-1 overflow-hidden flex flex-col w-full">
+          {children}
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function AppContent() {
+  useWebSocket();
+  
+  return (
+    <AuthenticatedLayout>
+      <Router />
+    </AuthenticatedLayout>
+  );
+}
+
+function App() {
+  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <SidebarProvider style={style as React.CSSProperties} defaultOpen={false}>
-          <div className="flex h-screen w-full">
-            <AppSidebar />
-            <main className="flex-1 overflow-hidden flex flex-col w-full">
-              <Router />
-            </main>
-          </div>
+        <AuthProvider>
+          <AppContent />
           <Toaster />
-        </SidebarProvider>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

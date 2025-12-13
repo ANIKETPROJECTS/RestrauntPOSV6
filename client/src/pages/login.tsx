@@ -3,17 +3,38 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
+  const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login:", { username, password, rememberMe });
-    setLocation("/");
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const result = await login(username, password);
+
+      if (result.success) {
+        setLocation("/");
+      } else if (result.code === "DB_ERROR") {
+        setLocation("/db-error");
+      } else {
+        setError(result.error || "Login failed. Please try again.");
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -21,10 +42,18 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-card rounded-lg border border-card-border shadow-xl p-8">
           <div className="text-center mb-8">
-            <div className="text-5xl mb-3">🍽️</div>
-            <h1 className="text-3xl font-bold text-primary mb-2">RestaurantPOS</h1>
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-3xl">POS</span>
+            </div>
+            <h1 className="text-3xl font-bold text-primary mb-2" data-testid="text-app-title">RestaurantPOS</h1>
             <p className="text-muted-foreground">Sign in to your account</p>
           </div>
+
+          {error && (
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-md p-3 mb-4" data-testid="text-login-error">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
@@ -36,6 +65,7 @@ export default function LoginPage() {
                 onChange={(e) => setUsername(e.target.value)}
                 data-testid="input-username"
                 required
+                disabled={isLoading}
               />
             </div>
 
@@ -48,15 +78,17 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 data-testid="input-password"
                 required
+                disabled={isLoading}
               />
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={rememberMe}
                   onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                   data-testid="checkbox-remember"
+                  disabled={isLoading}
                 />
                 <label className="text-sm">Remember me</label>
               </div>
@@ -70,8 +102,21 @@ export default function LoginPage() {
               </Button>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" data-testid="button-login">
-              Sign In
+            <Button 
+              type="submit" 
+              className="w-full" 
+              size="lg" 
+              data-testid="button-login"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
           </form>
 
@@ -81,7 +126,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          © 2024 RestaurantPOS. All rights reserved.
+          2024 RestaurantPOS. All rights reserved.
         </p>
       </div>
     </div>
