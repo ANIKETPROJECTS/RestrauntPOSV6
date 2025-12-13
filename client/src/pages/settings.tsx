@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { LogOut } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
@@ -23,6 +23,7 @@ export default function SettingsPage() {
     setIsLoggingOut(true);
     try {
       await apiRequest("POST", "/api/auth/logout");
+      queryClient.clear();
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
