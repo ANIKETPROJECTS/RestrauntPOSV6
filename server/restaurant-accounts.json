@@ -1,0 +1,11 @@
+[
+  {
+    "id": "default-restaurant",
+    "name": "Default Restaurant",
+    "username": "admin",
+    "password": "admin123",
+    "mongodbUri": "CURRENT_MONGODB_URI",
+    "isActive": true,
+    "createdAt": "2024-12-13T00:00:00.000Z"
+  }
+]

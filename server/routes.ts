@@ -1,7 +1,9 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
+import { getStorageForSession, requireAuth } from "./auth-middleware";
+import { IStorage } from "./storage";
 import {
   insertFloorSchema,
   insertTableSchema,
@@ -43,6 +45,11 @@ const checkoutSchema = z.object({
 
 let wss: WebSocketServer;
 
+function getStorage(req: Request): IStorage {
+  const sessionStorage = getStorageForSession(req);
+  return sessionStorage || storage;
+}
+
 function broadcastUpdate(type: string, data: any) {
   if (!wss) {
     console.log('[WebSocket] No WSS instance, cannot broadcast');
@@ -59,31 +66,35 @@ function broadcastUpdate(type: string, data: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  app.get("/api/floors", async (req, res) => {
-    const floors = await storage.getFloors();
+  app.get("/api/floors", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const floors = await st.getFloors();
     res.json(floors);
   });
 
-  app.get("/api/floors/:id", async (req, res) => {
-    const floor = await storage.getFloor(req.params.id);
+  app.get("/api/floors/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const floor = await st.getFloor(req.params.id);
     if (!floor) {
       return res.status(404).json({ error: "Floor not found" });
     }
     res.json(floor);
   });
 
-  app.post("/api/floors", async (req, res) => {
+  app.post("/api/floors", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = insertFloorSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const floor = await storage.createFloor(result.data);
+    const floor = await st.createFloor(result.data);
     broadcastUpdate("floor_created", floor);
     res.json(floor);
   });
 
-  app.patch("/api/floors/:id", async (req, res) => {
-    const floor = await storage.updateFloor(req.params.id, req.body);
+  app.patch("/api/floors/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const floor = await st.updateFloor(req.params.id, req.body);
     if (!floor) {
       return res.status(404).json({ error: "Floor not found" });
     }
@@ -91,8 +102,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(floor);
   });
 
-  app.delete("/api/floors/:id", async (req, res) => {
-    const success = await storage.deleteFloor(req.params.id);
+  app.delete("/api/floors/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const success = await st.deleteFloor(req.params.id);
     if (!success) {
       return res.status(404).json({ error: "Floor not found" });
     }
@@ -100,31 +112,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  app.get("/api/tables", async (req, res) => {
-    const tables = await storage.getTables();
+  app.get("/api/tables", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const tables = await st.getTables();
     res.json(tables);
   });
 
-  app.get("/api/tables/:id", async (req, res) => {
-    const table = await storage.getTable(req.params.id);
+  app.get("/api/tables/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const table = await st.getTable(req.params.id);
     if (!table) {
       return res.status(404).json({ error: "Table not found" });
     }
     res.json(table);
   });
 
-  app.post("/api/tables", async (req, res) => {
+  app.post("/api/tables", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = insertTableSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const table = await storage.createTable(result.data);
+    const table = await st.createTable(result.data);
     broadcastUpdate("table_created", table);
     res.json(table);
   });
 
-  app.patch("/api/tables/:id", async (req, res) => {
-    const table = await storage.updateTable(req.params.id, req.body);
+  app.patch("/api/tables/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const table = await st.updateTable(req.params.id, req.body);
     if (!table) {
       return res.status(404).json({ error: "Table not found" });
     }
@@ -132,8 +148,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(table);
   });
 
-  app.delete("/api/tables/:id", async (req, res) => {
-    const success = await storage.deleteTable(req.params.id);
+  app.delete("/api/tables/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const success = await st.deleteTable(req.params.id);
     if (!success) {
       return res.status(404).json({ error: "Table not found" });
     }
@@ -141,9 +158,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  app.patch("/api/tables/:id/status", async (req, res) => {
+  app.patch("/api/tables/:id/status", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const { status } = req.body;
-    const table = await storage.updateTableStatus(req.params.id, status);
+    const table = await st.updateTableStatus(req.params.id, status);
     if (!table) {
       return res.status(404).json({ error: "Table not found" });
     }
@@ -151,9 +169,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(table);
   });
 
-  app.patch("/api/tables/:id/order", async (req, res) => {
+  app.patch("/api/tables/:id/order", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const { orderId } = req.body;
-    const table = await storage.updateTableOrder(req.params.id, orderId);
+    const table = await st.updateTableOrder(req.params.id, orderId);
     if (!table) {
       return res.status(404).json({ error: "Table not found" });
     }
@@ -161,37 +180,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(table);
   });
 
-  app.get("/api/menu", async (req, res) => {
-    const items = await storage.getMenuItems();
+  app.get("/api/menu", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const items = await st.getMenuItems();
     res.json(items);
   });
 
-  app.get("/api/menu/categories", async (req, res) => {
-    const categoriesJson = await storage.getSetting("menu_categories");
+  app.get("/api/menu/categories", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const categoriesJson = await st.getSetting("menu_categories");
     const categories = categoriesJson ? JSON.parse(categoriesJson) : [];
     res.json({ categories });
   });
 
-  app.get("/api/menu/:id", async (req, res) => {
-    const item = await storage.getMenuItem(req.params.id);
+  app.get("/api/menu/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const item = await st.getMenuItem(req.params.id);
     if (!item) {
       return res.status(404).json({ error: "Menu item not found" });
     }
     res.json(item);
   });
 
-  app.post("/api/menu", async (req, res) => {
+  app.post("/api/menu", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = insertMenuItemSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const item = await storage.createMenuItem(result.data);
+    const item = await st.createMenuItem(result.data);
     broadcastUpdate("menu_updated", item);
     res.json(item);
   });
 
-  app.patch("/api/menu/:id", async (req, res) => {
-    const item = await storage.updateMenuItem(req.params.id, req.body);
+  app.patch("/api/menu/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const item = await st.updateMenuItem(req.params.id, req.body);
     if (!item) {
       return res.status(404).json({ error: "Menu item not found" });
     }
@@ -199,8 +223,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(item);
   });
 
-  app.delete("/api/menu/:id", async (req, res) => {
-    const success = await storage.deleteMenuItem(req.params.id);
+  app.delete("/api/menu/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const success = await st.deleteMenuItem(req.params.id);
     if (!success) {
       return res.status(404).json({ error: "Menu item not found" });
     }
@@ -208,9 +233,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  app.post("/api/menu/generate-quick-codes", async (req, res) => {
+  app.post("/api/menu/generate-quick-codes", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const items = await storage.getMenuItems();
+      const items = await st.getMenuItems();
       const usedCodes = new Set<string>();
       const itemsNeedingCodes: typeof items = [];
 
@@ -234,7 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const code = `${letters[letterIdx]}${num}`;
             if (!usedCodes.has(code)) {
               usedCodes.add(code);
-              await storage.updateMenuItem(item.id, { quickCode: code });
+              await st.updateMenuItem(item.id, { quickCode: code });
               updated++;
               found = true;
             }
@@ -248,7 +274,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/menu/seed-sample-recipes", async (req, res) => {
+  app.post("/api/menu/seed-sample-recipes", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const recipes = [
         {
@@ -315,24 +342,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
 
       // First, delete all existing recipes for these menu items to avoid duplicates
-      const existingRecipes = await storage.getRecipes();
+      const existingRecipes = await st.getRecipes();
       for (const recipe of recipes) {
-        const menuItem = (await storage.getMenuItems()).find(m => m.name === recipe.menuItemName);
+        const menuItem = (await st.getMenuItems()).find(m => m.name === recipe.menuItemName);
         if (menuItem) {
           const oldRecipe = existingRecipes.find(r => r.menuItemId === menuItem.id);
           if (oldRecipe) {
-            await storage.deleteRecipe(oldRecipe.id);
+            await st.deleteRecipe(oldRecipe.id);
             console.log(`🗑️ Deleted old recipe for: ${menuItem.name}`);
           }
         }
       }
 
       let addedRecipes = 0;
-      const inventoryItems = await storage.getInventoryItems();
+      const inventoryItems = await st.getInventoryItems();
       const inventoryMap = new Map(inventoryItems.map(item => [item.name.toLowerCase(), item]));
 
       for (const recipe of recipes) {
-        const menuItem = (await storage.getMenuItems()).find(m => m.name === recipe.menuItemName);
+        const menuItem = (await st.getMenuItems()).find(m => m.name === recipe.menuItemName);
         if (!menuItem) {
           console.log(`Menu item not found: ${recipe.menuItemName}`);
           continue;
@@ -356,7 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         if (recipe.ingredients.length > 0) {
-          const createdRecipe = await storage.createRecipe({ menuItemId: menuItem.id });
+          const createdRecipe = await st.createRecipe({ menuItemId: menuItem.id });
           console.log(`Created recipe for: ${menuItem.name} with ID: ${createdRecipe.id}`);
           
           let addedIngredients = 0;
@@ -365,7 +392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const invItem = inventoryMap.get(ing.name.toLowerCase());
             if (invItem) {
               try {
-                await storage.createRecipeIngredient({
+                await st.createRecipeIngredient({
                   recipeId: createdRecipe.id,
                   inventoryItemId: invItem.id,
                   quantity: String(ing.quantity),
@@ -399,68 +426,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/orders", async (req, res) => {
-    const orders = await storage.getOrders();
+  app.get("/api/orders", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const orders = await st.getOrders();
     res.json(orders);
   });
 
-  app.get("/api/orders/active", async (req, res) => {
-    const orders = await storage.getActiveOrders();
+  app.get("/api/orders/active", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const orders = await st.getActiveOrders();
     res.json(orders);
   });
 
-  app.get("/api/orders/completed", async (req, res) => {
-    const orders = await storage.getCompletedOrders();
+  app.get("/api/orders/completed", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const orders = await st.getCompletedOrders();
     res.json(orders);
   });
 
-  app.get("/api/orders/delivery", async (req, res) => {
-    const orders = await storage.getDeliveryOrders();
+  app.get("/api/orders/delivery", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const orders = await st.getDeliveryOrders();
     res.json(orders);
   });
 
-  app.get("/api/delivery-persons", async (req, res) => {
-    const persons = await storage.getDeliveryPersons();
+  app.get("/api/delivery-persons", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const persons = await st.getDeliveryPersons();
     res.json(persons);
   });
 
-  app.get("/api/delivery-persons/:id", async (req, res) => {
-    const person = await storage.getDeliveryPerson(req.params.id);
+  app.get("/api/delivery-persons/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const person = await st.getDeliveryPerson(req.params.id);
     if (!person) {
       return res.status(404).json({ error: "Delivery person not found" });
     }
     res.json(person);
   });
 
-  app.post("/api/delivery-persons", async (req, res) => {
+  app.post("/api/delivery-persons", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const person = await storage.createDeliveryPerson(req.body);
+      const person = await st.createDeliveryPerson(req.body);
       res.status(201).json(person);
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create delivery person" });
     }
   });
 
-  app.patch("/api/delivery-persons/:id", async (req, res) => {
-    const person = await storage.updateDeliveryPerson(req.params.id, req.body);
+  app.patch("/api/delivery-persons/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const person = await st.updateDeliveryPerson(req.params.id, req.body);
     if (!person) {
       return res.status(404).json({ error: "Delivery person not found" });
     }
     res.json(person);
   });
 
-  app.delete("/api/delivery-persons/:id", async (req, res) => {
-    const success = await storage.deleteDeliveryPerson(req.params.id);
+  app.delete("/api/delivery-persons/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const success = await st.deleteDeliveryPerson(req.params.id);
     if (!success) {
       return res.status(404).json({ error: "Delivery person not found" });
     }
     res.status(204).send();
   });
 
-  app.patch("/api/orders/:id/assign-driver", async (req, res) => {
+  app.patch("/api/orders/:id/assign-driver", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const { deliveryPersonId } = req.body;
     
-    const existingOrder = await storage.getOrder(req.params.id);
+    const existingOrder = await st.getOrder(req.params.id);
     if (!existingOrder) {
       return res.status(404).json({ error: "Order not found" });
     }
@@ -470,34 +507,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     if (deliveryPersonId) {
-      const driver = await storage.getDeliveryPerson(deliveryPersonId);
+      const driver = await st.getDeliveryPerson(deliveryPersonId);
       if (!driver) {
         return res.status(400).json({ error: "Delivery person not found" });
       }
     }
     
-    const order = await storage.assignDeliveryPerson(req.params.id, deliveryPersonId);
+    const order = await st.assignDeliveryPerson(req.params.id, deliveryPersonId);
     if (!order) {
       return res.status(500).json({ error: "Failed to assign driver" });
     }
     res.json(order);
   });
 
-  app.get("/api/orders/:id/invoice/pdf", async (req, res) => {
+  app.get("/api/orders/:id/invoice/pdf", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const order = await storage.getOrder(req.params.id);
+      const order = await st.getOrder(req.params.id);
       if (!order) {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      const invoices = await storage.getInvoices();
+      const invoices = await st.getInvoices();
       const invoice = invoices.find(inv => inv.orderId === req.params.id);
       
       if (!invoice) {
         return res.status(404).json({ error: "Invoice not found for this order" });
       }
 
-      const orderItems = await storage.getOrderItems(req.params.id);
+      const orderItems = await st.getOrderItems(req.params.id);
 
       const pdfBuffer = generateInvoicePDF({
         invoice,
@@ -518,28 +556,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/orders/:id/kot/pdf", async (req, res) => {
+  app.get("/api/orders/:id/kot/pdf", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const order = await storage.getOrder(req.params.id);
+      const order = await st.getOrder(req.params.id);
       if (!order) {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      const orderItems = await storage.getOrderItems(req.params.id);
+      const orderItems = await st.getOrderItems(req.params.id);
       if (!orderItems || orderItems.length === 0) {
         return res.status(400).json({ error: "No items in order" });
       }
 
       let tableInfo = null;
       if (order.tableId) {
-        tableInfo = await storage.getTable(order.tableId);
+        tableInfo = await st.getTable(order.tableId);
       }
 
       const pdfBuffer = generateKOTPDF({
         order,
         orderItems,
         tableNumber: tableInfo?.tableNumber || undefined,
-        floorName: tableInfo?.floorId ? (await storage.getFloor(tableInfo.floorId))?.name || undefined : undefined,
+        floorName: tableInfo?.floorId ? (await st.getFloor(tableInfo.floorId))?.name || undefined : undefined,
         restaurantName: "Restaurant POS"
       });
 
@@ -552,51 +591,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/orders/:id", async (req, res) => {
-    const order = await storage.getOrder(req.params.id);
+  app.get("/api/orders/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const order = await st.getOrder(req.params.id);
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
     res.json(order);
   });
 
-  app.get("/api/orders/:id/items", async (req, res) => {
-    const items = await storage.getOrderItems(req.params.id);
+  app.get("/api/orders/:id/items", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const items = await st.getOrderItems(req.params.id);
     res.json(items);
   });
 
-  app.post("/api/orders", async (req, res) => {
+  app.post("/api/orders", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = insertOrderSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const order = await storage.createOrder(result.data);
+    const order = await st.createOrder(result.data);
 
     if (order.tableId) {
-      await storage.updateTableOrder(order.tableId, order.id);
-      await storage.updateTableStatus(order.tableId, "occupied");
+      await st.updateTableOrder(order.tableId, order.id);
+      await st.updateTableStatus(order.tableId, "occupied");
     }
 
     broadcastUpdate("order_created", order);
     res.json(order);
   });
 
-  app.post("/api/orders/:id/items", async (req, res) => {
+  app.post("/api/orders/:id/items", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = insertOrderItemSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
     console.log('[Server] Creating order item for order:', req.params.id);
-    const item = await storage.createOrderItem(result.data);
+    const item = await st.createOrderItem(result.data);
 
-    const orderItems = await storage.getOrderItems(req.params.id);
+    const orderItems = await st.getOrderItems(req.params.id);
     const total = orderItems.reduce((sum, item) => {
       return sum + parseFloat(item.price) * item.quantity;
     }, 0);
 
-    await storage.updateOrderTotal(req.params.id, total.toFixed(2));
+    await st.updateOrderTotal(req.params.id, total.toFixed(2));
 
-    const order = await storage.getOrder(req.params.id);
+    const order = await st.getOrder(req.params.id);
     if (order && order.tableId) {
       const hasNew = orderItems.some((i) => i.status === "new");
       const hasPreparing = orderItems.some((i) => i.status === "preparing");
@@ -604,16 +647,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allServed = orderItems.every((i) => i.status === "served");
 
       if (allServed) {
-        await storage.updateTableStatus(order.tableId, "served");
+        await st.updateTableStatus(order.tableId, "served");
       } else if (allReady) {
-        await storage.updateTableStatus(order.tableId, "ready");
+        await st.updateTableStatus(order.tableId, "ready");
       } else if (hasPreparing) {
-        await storage.updateTableStatus(order.tableId, "preparing");
+        await st.updateTableStatus(order.tableId, "preparing");
       } else if (hasNew) {
-        await storage.updateTableStatus(order.tableId, "occupied");
+        await st.updateTableStatus(order.tableId, "occupied");
       }
 
-      const updatedTable = await storage.getTable(order.tableId);
+      const updatedTable = await st.getTable(order.tableId);
       if (updatedTable) {
         broadcastUpdate("table_updated", updatedTable);
       }
@@ -624,9 +667,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(item);
   });
 
-  app.patch("/api/orders/:id/status", async (req, res) => {
+  app.patch("/api/orders/:id/status", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const { status } = req.body;
-    const order = await storage.updateOrderStatus(req.params.id, status);
+    const order = await st.updateOrderStatus(req.params.id, status);
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
@@ -634,29 +678,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(order);
   });
 
-  app.post("/api/orders/:id/complete", async (req, res) => {
-    const order = await storage.completeOrder(req.params.id);
+  app.post("/api/orders/:id/complete", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const order = await st.completeOrder(req.params.id);
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
     if (order.tableId) {
-      await storage.updateTableOrder(order.tableId, null);
-      await storage.updateTableStatus(order.tableId, "free");
+      await st.updateTableOrder(order.tableId, null);
+      await st.updateTableStatus(order.tableId, "free");
     }
 
     broadcastUpdate("order_completed", order);
     res.json(order);
   });
 
-  app.post("/api/orders/:id/kot", async (req, res) => {
+  app.post("/api/orders/:id/kot", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = orderActionSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
     
     console.log('[Server] Sending order to kitchen:', req.params.id);
-    const order = await storage.updateOrderStatus(req.params.id, "sent_to_kitchen");
+    const order = await st.updateOrderStatus(req.params.id, "sent_to_kitchen");
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
@@ -665,20 +711,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ order, shouldPrint: result.data.print });
   });
 
-  app.post("/api/orders/:id/save", async (req, res) => {
+  app.post("/api/orders/:id/save", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = orderActionSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
     
-    const order = await storage.updateOrderStatus(req.params.id, "saved");
+    const order = await st.updateOrderStatus(req.params.id, "saved");
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
     let invoice = null;
     if (result.data.print) {
-      const orderItems = await storage.getOrderItems(req.params.id);
+      const orderItems = await st.getOrderItems(req.params.id);
       const subtotal = orderItems.reduce((sum, item) => 
         sum + parseFloat(item.price) * item.quantity, 0
       );
@@ -687,10 +734,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let tableInfo = null;
       if (order.tableId) {
-        tableInfo = await storage.getTable(order.tableId);
+        tableInfo = await st.getTable(order.tableId);
       }
 
-      const invoiceCount = (await storage.getInvoices()).length;
+      const invoiceCount = (await st.getInvoices()).length;
       const invoiceNumber = `INV-${String(invoiceCount + 1).padStart(4, '0')}`;
 
       const invoiceItemsData = orderItems.map(item => ({
@@ -701,11 +748,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: item.notes || undefined
       }));
 
-      invoice = await storage.createInvoice({
+      invoice = await st.createInvoice({
         invoiceNumber,
         orderId: order.id,
         tableNumber: tableInfo?.tableNumber || null,
-        floorName: tableInfo?.floorId ? (await storage.getFloor(tableInfo.floorId))?.name || null : null,
+        floorName: tableInfo?.floorId ? (await st.getFloor(tableInfo.floorId))?.name || null : null,
         customerName: order.customerName,
         customerPhone: order.customerPhone,
         subtotal: subtotal.toFixed(2),
@@ -726,18 +773,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ order, invoice, shouldPrint: result.data.print });
   });
 
-  app.post("/api/orders/:id/bill", async (req, res) => {
+  app.post("/api/orders/:id/bill", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = orderActionSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
     
-    const order = await storage.billOrder(req.params.id);
+    const order = await st.billOrder(req.params.id);
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    const orderItems = await storage.getOrderItems(req.params.id);
+    const orderItems = await st.getOrderItems(req.params.id);
     
     const subtotal = orderItems.reduce((sum, item) => 
       sum + parseFloat(item.price) * item.quantity, 0
@@ -747,10 +795,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     let tableInfo = null;
     if (order.tableId) {
-      tableInfo = await storage.getTable(order.tableId);
+      tableInfo = await st.getTable(order.tableId);
     }
 
-    const invoiceCount = (await storage.getInvoices()).length;
+    const invoiceCount = (await st.getInvoices()).length;
     const invoiceNumber = `INV-${String(invoiceCount + 1).padStart(4, '0')}`;
 
     const invoiceItemsData = orderItems.map(item => ({
@@ -761,11 +809,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       notes: item.notes || undefined
     }));
 
-    const invoice = await storage.createInvoice({
+    const invoice = await st.createInvoice({
       invoiceNumber,
       orderId: order.id,
       tableNumber: tableInfo?.tableNumber || null,
-      floorName: tableInfo?.floorId ? (await storage.getFloor(tableInfo.floorId))?.name || null : null,
+      floorName: tableInfo?.floorId ? (await st.getFloor(tableInfo.floorId))?.name || null : null,
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       subtotal: subtotal.toFixed(2),
@@ -784,18 +832,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ order, invoice, shouldPrint: result.data.print });
   });
 
-  app.post("/api/orders/:id/checkout", async (req, res) => {
+  app.post("/api/orders/:id/checkout", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = checkoutSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
     
-    const order = await storage.getOrder(req.params.id);
+    const order = await st.getOrder(req.params.id);
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    const orderItems = await storage.getOrderItems(req.params.id);
+    const orderItems = await st.getOrderItems(req.params.id);
     
     const subtotal = orderItems.reduce((sum, item) => 
       sum + parseFloat(item.price) * item.quantity, 0
@@ -820,16 +869,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
-    const checkedOutOrder = await storage.checkoutOrder(req.params.id, result.data.paymentMode);
+    const checkedOutOrder = await st.checkoutOrder(req.params.id, result.data.paymentMode);
     if (!checkedOutOrder) {
       return res.status(500).json({ error: "Failed to checkout order" });
     }
 
     let tableInfo = null;
     if (checkedOutOrder.tableId) {
-      tableInfo = await storage.getTable(checkedOutOrder.tableId);
-      await storage.updateTableOrder(checkedOutOrder.tableId, null);
-      await storage.updateTableStatus(checkedOutOrder.tableId, "free");
+      tableInfo = await st.getTable(checkedOutOrder.tableId);
+      await st.updateTableOrder(checkedOutOrder.tableId, null);
+      await st.updateTableStatus(checkedOutOrder.tableId, "free");
     }
 
     // Update customer's table status to "free" for digital menu orders
@@ -837,7 +886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await digitalMenuSync.updateCustomerTableStatus(checkedOutOrder.customerPhone, 'free');
     }
 
-    const invoiceCount = (await storage.getInvoices()).length;
+    const invoiceCount = (await st.getInvoices()).length;
     const invoiceNumber = `INV-${String(invoiceCount + 1).padStart(4, '0')}`;
 
     const invoiceItemsData = orderItems.map(item => ({
@@ -848,11 +897,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       notes: item.notes || undefined
     }));
 
-    const invoice = await storage.createInvoice({
+    const invoice = await st.createInvoice({
       invoiceNumber,
       orderId: checkedOutOrder.id,
       tableNumber: tableInfo?.tableNumber || null,
-      floorName: tableInfo?.floorId ? (await storage.getFloor(tableInfo.floorId))?.name || null : null,
+      floorName: tableInfo?.floorId ? (await st.getFloor(tableInfo.floorId))?.name || null : null,
       customerName: checkedOutOrder.customerName,
       customerPhone: checkedOutOrder.customerPhone,
       subtotal: subtotal.toFixed(2),
@@ -868,7 +917,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Auto-deduct inventory for order
     try {
-      await storage.deductInventoryForOrder(checkedOutOrder.id);
+      await st.deductInventoryForOrder(checkedOutOrder.id);
       broadcastUpdate("inventory_updated", { orderId: checkedOutOrder.id });
     } catch (error) {
       console.error("Error deducting inventory for order:", error);
@@ -879,19 +928,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ order: checkedOutOrder, invoice, shouldPrint: result.data.print });
   });
 
-  app.get("/api/invoices/:id/pdf", async (req, res) => {
+  app.get("/api/invoices/:id/pdf", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const invoice = await storage.getInvoice(req.params.id);
+      const invoice = await st.getInvoice(req.params.id);
       if (!invoice) {
         return res.status(404).json({ error: "Invoice not found" });
       }
 
-      const order = await storage.getOrder(invoice.orderId);
+      const order = await st.getOrder(invoice.orderId);
       if (!order) {
         return res.status(404).json({ error: "Order not found" });
       }
 
-      const orderItems = await storage.getOrderItems(invoice.orderId);
+      const orderItems = await st.getOrderItems(invoice.orderId);
 
       const pdfBuffer = generateInvoicePDF({
         invoice,
@@ -912,16 +962,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/order-items/:id/status", async (req, res) => {
+  app.patch("/api/order-items/:id/status", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const { status } = req.body;
-    const item = await storage.updateOrderItemStatus(req.params.id, status);
+    const item = await st.updateOrderItemStatus(req.params.id, status);
     if (!item) {
       return res.status(404).json({ error: "Order item not found" });
     }
 
-    const order = await storage.getOrder(item.orderId);
+    const order = await st.getOrder(item.orderId);
     if (order && order.tableId) {
-      const allItems = await storage.getOrderItems(item.orderId);
+      const allItems = await st.getOrderItems(item.orderId);
       const hasNew = allItems.some((i) => i.status === "new");
       const hasPreparing = allItems.some((i) => i.status === "preparing");
       const allReady = allItems.every((i) => i.status === "ready" || i.status === "served");
@@ -930,20 +981,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let newTableStatus = null;
       if (allServed) {
         newTableStatus = "served";
-        await storage.updateTableStatus(order.tableId, "served");
+        await st.updateTableStatus(order.tableId, "served");
       } else if (allReady) {
         newTableStatus = "ready";
-        await storage.updateTableStatus(order.tableId, "ready");
+        await st.updateTableStatus(order.tableId, "ready");
       } else if (hasPreparing) {
         newTableStatus = "preparing";
-        await storage.updateTableStatus(order.tableId, "preparing");
+        await st.updateTableStatus(order.tableId, "preparing");
       } else if (hasNew) {
         newTableStatus = "occupied";
-        await storage.updateTableStatus(order.tableId, "occupied");
+        await st.updateTableStatus(order.tableId, "occupied");
       }
 
       if (newTableStatus) {
-        const updatedTable = await storage.getTable(order.tableId);
+        const updatedTable = await st.getTable(order.tableId);
         if (updatedTable) {
           broadcastUpdate("table_updated", updatedTable);
         }
@@ -959,84 +1010,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(item);
   });
 
-  app.delete("/api/order-items/:id", async (req, res) => {
-    const item = await storage.getOrderItem(req.params.id);
+  app.delete("/api/order-items/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const item = await st.getOrderItem(req.params.id);
     if (!item) {
       return res.status(404).json({ error: "Order item not found" });
     }
 
-    const success = await storage.deleteOrderItem(req.params.id);
+    const success = await st.deleteOrderItem(req.params.id);
     if (!success) {
       return res.status(500).json({ error: "Failed to delete order item" });
     }
 
-    const orderItems = await storage.getOrderItems(item.orderId);
+    const orderItems = await st.getOrderItems(item.orderId);
     const total = orderItems.reduce((sum, orderItem) => {
       return sum + parseFloat(orderItem.price) * orderItem.quantity;
     }, 0);
 
-    await storage.updateOrderTotal(item.orderId, total.toFixed(2));
+    await st.updateOrderTotal(item.orderId, total.toFixed(2));
 
     broadcastUpdate("order_item_deleted", { id: req.params.id, orderId: item.orderId });
     res.json({ success: true });
   });
 
-  app.get("/api/inventory", async (req, res) => {
-    const items = await storage.getInventoryItems();
+  app.get("/api/inventory", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const items = await st.getInventoryItems();
     res.json(items);
   });
 
-  app.post("/api/inventory", async (req, res) => {
+  app.post("/api/inventory", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = insertInventoryItemSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const item = await storage.createInventoryItem(result.data);
+    const item = await st.createInventoryItem(result.data);
     res.json(item);
   });
 
-  app.patch("/api/inventory/:id", async (req, res) => {
+  app.patch("/api/inventory/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const { quantity } = req.body;
-    const item = await storage.updateInventoryQuantity(req.params.id, quantity);
+    const item = await st.updateInventoryQuantity(req.params.id, quantity);
     if (!item) {
       return res.status(404).json({ error: "Inventory item not found" });
     }
     res.json(item);
   });
 
-  app.get("/api/invoices", async (req, res) => {
-    const invoices = await storage.getInvoices();
+  app.get("/api/invoices", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const invoices = await st.getInvoices();
     res.json(invoices);
   });
 
-  app.get("/api/invoices/:id", async (req, res) => {
-    const invoice = await storage.getInvoice(req.params.id);
+  app.get("/api/invoices/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const invoice = await st.getInvoice(req.params.id);
     if (!invoice) {
       return res.status(404).json({ error: "Invoice not found" });
     }
     res.json(invoice);
   });
 
-  app.get("/api/invoices/number/:invoiceNumber", async (req, res) => {
-    const invoice = await storage.getInvoiceByNumber(req.params.invoiceNumber);
+  app.get("/api/invoices/number/:invoiceNumber", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const invoice = await st.getInvoiceByNumber(req.params.invoiceNumber);
     if (!invoice) {
       return res.status(404).json({ error: "Invoice not found" });
     }
     res.json(invoice);
   });
 
-  app.post("/api/invoices", async (req, res) => {
+  app.post("/api/invoices", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = insertInvoiceSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const invoice = await storage.createInvoice(result.data);
+    const invoice = await st.createInvoice(result.data);
     broadcastUpdate("invoice_created", invoice);
     res.json(invoice);
   });
 
-  app.patch("/api/invoices/:id", async (req, res) => {
-    const invoice = await storage.updateInvoice(req.params.id, req.body);
+  app.patch("/api/invoices/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const invoice = await st.updateInvoice(req.params.id, req.body);
     if (!invoice) {
       return res.status(404).json({ error: "Invoice not found" });
     }
@@ -1044,8 +1104,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(invoice);
   });
 
-  app.delete("/api/invoices/:id", async (req, res) => {
-    const success = await storage.deleteInvoice(req.params.id);
+  app.delete("/api/invoices/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const success = await st.deleteInvoice(req.params.id);
     if (!success) {
       return res.status(404).json({ error: "Invoice not found" });
     }
@@ -1053,25 +1114,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  app.get("/api/reservations", async (req, res) => {
-    const reservations = await storage.getReservations();
+  app.get("/api/reservations", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const reservations = await st.getReservations();
     res.json(reservations);
   });
 
-  app.get("/api/reservations/:id", async (req, res) => {
-    const reservation = await storage.getReservation(req.params.id);
+  app.get("/api/reservations/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const reservation = await st.getReservation(req.params.id);
     if (!reservation) {
       return res.status(404).json({ error: "Reservation not found" });
     }
     res.json(reservation);
   });
 
-  app.get("/api/reservations/table/:tableId", async (req, res) => {
-    const reservations = await storage.getReservationsByTable(req.params.tableId);
+  app.get("/api/reservations/table/:tableId", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const reservations = await st.getReservationsByTable(req.params.tableId);
     res.json(reservations);
   });
 
-  app.post("/api/reservations", async (req, res) => {
+  app.post("/api/reservations", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     console.log("=== SERVER: CREATE RESERVATION ===");
     console.log("Received body:", req.body);
     console.log("Body type:", typeof req.body);
@@ -1089,17 +1154,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     console.log("Validated data:", result.data);
     
-    const existingReservations = await storage.getReservationsByTable(result.data.tableId);
+    const existingReservations = await st.getReservationsByTable(result.data.tableId);
     if (existingReservations.length > 0) {
       return res.status(409).json({ error: "This table already has an active reservation" });
     }
     
-    const reservation = await storage.createReservation(result.data);
+    const reservation = await st.createReservation(result.data);
     console.log("Created reservation:", reservation);
     
-    const table = await storage.getTable(reservation.tableId);
+    const table = await st.getTable(reservation.tableId);
     if (table && table.status === "free") {
-      const updatedTable = await storage.updateTableStatus(reservation.tableId, "reserved");
+      const updatedTable = await st.updateTableStatus(reservation.tableId, "reserved");
       if (updatedTable) {
         broadcastUpdate("table_updated", updatedTable);
       }
@@ -1108,8 +1173,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(reservation);
   });
 
-  app.patch("/api/reservations/:id", async (req, res) => {
-    const existingReservation = await storage.getReservation(req.params.id);
+  app.patch("/api/reservations/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const existingReservation = await st.getReservation(req.params.id);
     if (!existingReservation) {
       return res.status(404).json({ error: "Reservation not found" });
     }
@@ -1119,32 +1185,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const tableChanged = oldTableId !== newTableId;
     
     if (tableChanged) {
-      const newTableReservations = await storage.getReservationsByTable(newTableId);
+      const newTableReservations = await st.getReservationsByTable(newTableId);
       if (newTableReservations.length > 0) {
         return res.status(409).json({ error: "The destination table already has an active reservation" });
       }
     }
     
-    const reservation = await storage.updateReservation(req.params.id, req.body);
+    const reservation = await st.updateReservation(req.params.id, req.body);
     if (!reservation) {
       return res.status(404).json({ error: "Reservation not found" });
     }
     
     if (tableChanged) {
-      const oldTableReservations = await storage.getReservationsByTable(oldTableId);
+      const oldTableReservations = await st.getReservationsByTable(oldTableId);
       if (oldTableReservations.length === 0) {
-        const oldTable = await storage.getTable(oldTableId);
+        const oldTable = await st.getTable(oldTableId);
         if (oldTable && oldTable.status === "reserved" && !oldTable.currentOrderId) {
-          const updatedOldTable = await storage.updateTableStatus(oldTableId, "free");
+          const updatedOldTable = await st.updateTableStatus(oldTableId, "free");
           if (updatedOldTable) {
             broadcastUpdate("table_updated", updatedOldTable);
           }
         }
       }
       
-      const newTable = await storage.getTable(newTableId);
+      const newTable = await st.getTable(newTableId);
       if (newTable && newTable.status === "free") {
-        const updatedNewTable = await storage.updateTableStatus(newTableId, "reserved");
+        const updatedNewTable = await st.updateTableStatus(newTableId, "reserved");
         if (updatedNewTable) {
           broadcastUpdate("table_updated", updatedNewTable);
         }
@@ -1152,11 +1218,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     if (req.body.status === "cancelled") {
-      const tableReservations = await storage.getReservationsByTable(reservation.tableId);
+      const tableReservations = await st.getReservationsByTable(reservation.tableId);
       if (tableReservations.length === 0) {
-        const table = await storage.getTable(reservation.tableId);
+        const table = await st.getTable(reservation.tableId);
         if (table && table.status === "reserved" && !table.currentOrderId) {
-          const updatedTable = await storage.updateTableStatus(reservation.tableId, "free");
+          const updatedTable = await st.updateTableStatus(reservation.tableId, "free");
           if (updatedTable) {
             broadcastUpdate("table_updated", updatedTable);
           }
@@ -1168,20 +1234,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(reservation);
   });
 
-  app.delete("/api/reservations/:id", async (req, res) => {
-    const reservation = await storage.getReservation(req.params.id);
+  app.delete("/api/reservations/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const reservation = await st.getReservation(req.params.id);
     if (!reservation) {
       return res.status(404).json({ error: "Reservation not found" });
     }
-    const success = await storage.deleteReservation(req.params.id);
+    const success = await st.deleteReservation(req.params.id);
     if (!success) {
       return res.status(404).json({ error: "Failed to delete reservation" });
     }
-    const tableReservations = await storage.getReservationsByTable(reservation.tableId);
+    const tableReservations = await st.getReservationsByTable(reservation.tableId);
     if (tableReservations.length === 0) {
-      const table = await storage.getTable(reservation.tableId);
+      const table = await st.getTable(reservation.tableId);
       if (table && table.status === "reserved" && !table.currentOrderId) {
-        const updatedTable = await storage.updateTableStatus(reservation.tableId, "free");
+        const updatedTable = await st.updateTableStatus(reservation.tableId, "free");
         if (updatedTable) {
           broadcastUpdate("table_updated", updatedTable);
         }
@@ -1191,34 +1258,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  app.post("/api/admin/clear-data", async (req, res) => {
+  app.post("/api/admin/clear-data", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const { types = ['all'] } = req.body;
       const cleared: string[] = [];
 
       if (types.includes('orderItems') || types.includes('all')) {
-        const orders = await storage.getOrders();
+        const orders = await st.getOrders();
         for (const order of orders) {
-          const orderItems = await storage.getOrderItems(order.id);
+          const orderItems = await st.getOrderItems(order.id);
           for (const item of orderItems) {
-            await storage.deleteOrderItem(item.id);
+            await st.deleteOrderItem(item.id);
           }
         }
         cleared.push('orderItems');
       }
 
       if (types.includes('invoices') || types.includes('all')) {
-        const invoices = await storage.getInvoices();
+        const invoices = await st.getInvoices();
         for (const invoice of invoices) {
-          await storage.deleteInvoice(invoice.id);
+          await st.deleteInvoice(invoice.id);
         }
         cleared.push('invoices');
       }
 
       if (types.includes('orders') || types.includes('all')) {
-        const orders = await storage.getOrders();
+        const orders = await st.getOrders();
         for (const order of orders) {
-          await storage.deleteOrder(order.id);
+          await st.deleteOrder(order.id);
         }
         cleared.push('orders');
       }
@@ -1231,22 +1299,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/customers", async (req, res) => {
-    const customers = await storage.getCustomers();
+  app.get("/api/customers", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const customers = await st.getCustomers();
     res.json(customers);
   });
 
-  app.get("/api/customers/:id/stats", async (req, res) => {
-    const customer = await storage.getCustomer(req.params.id);
+  app.get("/api/customers/:id/stats", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const customer = await st.getCustomer(req.params.id);
     if (!customer) {
       return res.status(404).json({ error: "Customer not found" });
     }
 
-    const orders = await storage.getOrders();
+    const orders = await st.getOrders();
     const customerOrders = orders.filter(o => o.customerPhone === customer.phone);
     const totalOrders = customerOrders.length;
 
-    const invoices = await storage.getInvoices();
+    const invoices = await st.getInvoices();
     const customerInvoices = invoices.filter(inv => {
       const order = customerOrders.find(o => o.id === inv.orderId);
       return !!order;
@@ -1264,38 +1334,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.get("/api/customers/phone/:phone", async (req, res) => {
-    const customer = await storage.getCustomerByPhone(req.params.phone);
+  app.get("/api/customers/phone/:phone", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const customer = await st.getCustomerByPhone(req.params.phone);
     if (!customer) {
       return res.status(404).json({ error: "Customer not found" });
     }
     res.json(customer);
   });
 
-  app.get("/api/customers/:id", async (req, res) => {
-    const customer = await storage.getCustomer(req.params.id);
+  app.get("/api/customers/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const customer = await st.getCustomer(req.params.id);
     if (!customer) {
       return res.status(404).json({ error: "Customer not found" });
     }
     res.json(customer);
   });
 
-  app.post("/api/customers", async (req, res) => {
+  app.post("/api/customers", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = insertCustomerSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const existingCustomer = await storage.getCustomerByPhone(result.data.phone);
+    const existingCustomer = await st.getCustomerByPhone(result.data.phone);
     if (existingCustomer) {
       return res.status(409).json({ error: "Customer with this phone number already exists", customer: existingCustomer });
     }
-    const customer = await storage.createCustomer(result.data);
+    const customer = await st.createCustomer(result.data);
     broadcastUpdate("customer_created", customer);
     res.json(customer);
   });
 
-  app.patch("/api/customers/:id", async (req, res) => {
-    const customer = await storage.updateCustomer(req.params.id, req.body);
+  app.patch("/api/customers/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const customer = await st.updateCustomer(req.params.id, req.body);
     if (!customer) {
       return res.status(404).json({ error: "Customer not found" });
     }
@@ -1303,8 +1377,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(customer);
   });
 
-  app.delete("/api/customers/:id", async (req, res) => {
-    const success = await storage.deleteCustomer(req.params.id);
+  app.delete("/api/customers/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const success = await st.deleteCustomer(req.params.id);
     if (!success) {
       return res.status(404).json({ error: "Customer not found" });
     }
@@ -1312,31 +1387,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  app.get("/api/feedbacks", async (req, res) => {
-    const feedbacks = await storage.getFeedbacks();
+  app.get("/api/feedbacks", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const feedbacks = await st.getFeedbacks();
     res.json(feedbacks);
   });
 
-  app.get("/api/feedbacks/:id", async (req, res) => {
-    const feedback = await storage.getFeedback(req.params.id);
+  app.get("/api/feedbacks/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const feedback = await st.getFeedback(req.params.id);
     if (!feedback) {
       return res.status(404).json({ error: "Feedback not found" });
     }
     res.json(feedback);
   });
 
-  app.post("/api/feedbacks", async (req, res) => {
+  app.post("/api/feedbacks", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const result = insertFeedbackSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
-    const feedback = await storage.createFeedback(result.data);
+    const feedback = await st.createFeedback(result.data);
     broadcastUpdate("feedback_created", feedback);
     res.json(feedback);
   });
 
-  app.delete("/api/feedbacks/:id", async (req, res) => {
-    const success = await storage.deleteFeedback(req.params.id);
+  app.delete("/api/feedbacks/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const success = await st.deleteFeedback(req.params.id);
     if (!success) {
       return res.status(404).json({ error: "Feedback not found" });
     }
@@ -1344,23 +1423,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  app.get("/api/settings/mongodb-uri", async (req, res) => {
-    const uri = await storage.getSetting("mongodb_uri");
+  app.get("/api/settings/mongodb-uri", requireAuth, async (req, res) => {
+    const st = getStorage(req);
+    const uri = await st.getSetting("mongodb_uri");
     res.json({ uri: uri || null, hasUri: !!uri });
   });
 
-  app.post("/api/settings/mongodb-uri", async (req, res) => {
+  app.post("/api/settings/mongodb-uri", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     const { uri } = req.body;
     if (!uri || typeof uri !== "string") {
       return res.status(400).json({ error: "MongoDB URI is required" });
     }
-    await storage.setSetting("mongodb_uri", uri);
+    await st.setSetting("mongodb_uri", uri);
     res.json({ success: true });
   });
 
-  app.post("/api/menu/sync-from-mongodb", async (req, res) => {
+  app.post("/api/menu/sync-from-mongodb", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const mongoUri = await storage.getSetting("mongodb_uri");
+      const mongoUri = await st.getSetting("mongodb_uri");
       if (!mongoUri) {
         return res.status(400).json({ error: "MongoDB URI not configured. Please set it first." });
       }
@@ -1368,18 +1450,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { databaseName } = req.body;
       const { items, categories } = await fetchMenuItemsFromMongoDB(mongoUri, databaseName);
       
-      const existingItems = await storage.getMenuItems();
+      const existingItems = await st.getMenuItems();
       for (const existing of existingItems) {
-        await storage.deleteMenuItem(existing.id);
+        await st.deleteMenuItem(existing.id);
       }
       
       const createdItems = [];
       for (const item of items) {
-        const created = await storage.createMenuItem(item);
+        const created = await st.createMenuItem(item);
         createdItems.push(created);
       }
       
-      await storage.setSetting("menu_categories", JSON.stringify(categories));
+      await st.setSetting("menu_categories", JSON.stringify(categories));
       
       broadcastUpdate("menu_synced", { count: createdItems.length });
       
@@ -1399,9 +1481,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== INVENTORY MANAGEMENT API ROUTES ====================
 
   // Inventory Items
-  app.get("/api/inventory", async (req, res) => {
+  app.get("/api/inventory", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      let items = await storage.getInventoryItems();
+      let items = await st.getInventoryItems();
       
       // Apply search filter
       if (req.query.search) {
@@ -1437,9 +1520,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/inventory/:id", async (req, res) => {
+  app.get("/api/inventory/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const item = await storage.getInventoryItem(req.params.id);
+      const item = await st.getInventoryItem(req.params.id);
       if (!item) {
         return res.status(404).json({ error: "Inventory item not found" });
       }
@@ -1449,13 +1533,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/inventory", async (req, res) => {
+  app.post("/api/inventory", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const result = insertInventoryItemSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
-      const item = await storage.createInventoryItem(result.data);
+      const item = await st.createInventoryItem(result.data);
       broadcastUpdate("inventory_created", item);
       res.json(item);
     } catch (error) {
@@ -1463,9 +1548,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/inventory/:id", async (req, res) => {
+  app.patch("/api/inventory/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const item = await storage.updateInventoryItem(req.params.id, req.body);
+      const item = await st.updateInventoryItem(req.params.id, req.body);
       if (!item) {
         return res.status(404).json({ error: "Inventory item not found" });
       }
@@ -1476,9 +1562,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/inventory/:id", async (req, res) => {
+  app.delete("/api/inventory/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const success = await storage.deleteInventoryItem(req.params.id);
+      const success = await st.deleteInventoryItem(req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Inventory item not found" });
       }
@@ -1490,17 +1577,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recipes & Ingredients
-  app.get("/api/recipes/menu-item/:menuItemId", async (req, res) => {
+  app.get("/api/recipes/menu-item/:menuItemId", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const recipe = await storage.getRecipeByMenuItemId(req.params.menuItemId);
+      const recipe = await st.getRecipeByMenuItemId(req.params.menuItemId);
       if (!recipe) {
         return res.status(404).json({ error: "Recipe not found for this menu item" });
       }
       
-      const ingredients = await storage.getRecipeIngredients(recipe.id);
+      const ingredients = await st.getRecipeIngredients(recipe.id);
       const ingredientsWithDetails = await Promise.all(
         ingredients.map(async (ingredient) => {
-          const inventoryItem = await storage.getInventoryItem(ingredient.inventoryItemId);
+          const inventoryItem = await st.getInventoryItem(ingredient.inventoryItemId);
           return {
             ...ingredient,
             inventoryItem,
@@ -1517,13 +1605,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/recipes", async (req, res) => {
+  app.post("/api/recipes", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const result = insertRecipeSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
-      const recipe = await storage.createRecipe(result.data);
+      const recipe = await st.createRecipe(result.data);
       broadcastUpdate("recipe_created", recipe);
       res.json(recipe);
     } catch (error) {
@@ -1531,14 +1620,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/recipes/:recipeId/ingredients", async (req, res) => {
+  app.post("/api/recipes/:recipeId/ingredients", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const bodySchema = insertRecipeIngredientSchema.omit({ recipeId: true });
       const result = bodySchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
-      const ingredient = await storage.createRecipeIngredient({
+      const ingredient = await st.createRecipeIngredient({
         ...result.data,
         recipeId: req.params.recipeId,
       });
@@ -1549,9 +1639,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/recipes/:recipeId/ingredients/:id", async (req, res) => {
+  app.patch("/api/recipes/:recipeId/ingredients/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const ingredient = await storage.updateRecipeIngredient(req.params.id, req.body);
+      const ingredient = await st.updateRecipeIngredient(req.params.id, req.body);
       if (!ingredient) {
         return res.status(404).json({ error: "Recipe ingredient not found" });
       }
@@ -1562,9 +1653,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/recipes/:recipeId/ingredients/:id", async (req, res) => {
+  app.delete("/api/recipes/:recipeId/ingredients/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const success = await storage.deleteRecipeIngredient(req.params.id);
+      const success = await st.deleteRecipeIngredient(req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Recipe ingredient not found" });
       }
@@ -1575,9 +1667,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/recipes/:id", async (req, res) => {
+  app.delete("/api/recipes/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const success = await storage.deleteRecipe(req.params.id);
+      const success = await st.deleteRecipe(req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Recipe not found" });
       }
@@ -1589,22 +1682,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Suppliers
-  app.get("/api/suppliers", async (req, res) => {
+  app.get("/api/suppliers", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const suppliers = await storage.getSuppliers();
+      const suppliers = await st.getSuppliers();
       res.json(suppliers);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch suppliers" });
     }
   });
 
-  app.post("/api/suppliers", async (req, res) => {
+  app.post("/api/suppliers", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const result = insertSupplierSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
-      const supplier = await storage.createSupplier(result.data);
+      const supplier = await st.createSupplier(result.data);
       broadcastUpdate("supplier_created", supplier);
       res.json(supplier);
     } catch (error) {
@@ -1612,9 +1707,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/suppliers/:id", async (req, res) => {
+  app.patch("/api/suppliers/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const supplier = await storage.updateSupplier(req.params.id, req.body);
+      const supplier = await st.updateSupplier(req.params.id, req.body);
       if (!supplier) {
         return res.status(404).json({ error: "Supplier not found" });
       }
@@ -1625,9 +1721,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/suppliers/:id", async (req, res) => {
+  app.delete("/api/suppliers/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const success = await storage.deleteSupplier(req.params.id);
+      const success = await st.deleteSupplier(req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Supplier not found" });
       }
@@ -1639,22 +1736,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Purchase Orders
-  app.get("/api/purchase-orders", async (req, res) => {
+  app.get("/api/purchase-orders", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const orders = await storage.getPurchaseOrders();
+      const orders = await st.getPurchaseOrders();
       const ordersWithItems = await Promise.all(
         orders.map(async (order) => {
-          const items = await storage.getPurchaseOrderItems(order.id);
+          const items = await st.getPurchaseOrderItems(order.id);
           const itemsWithDetails = await Promise.all(
             items.map(async (item) => {
-              const inventoryItem = await storage.getInventoryItem(item.inventoryItemId);
+              const inventoryItem = await st.getInventoryItem(item.inventoryItemId);
               return {
                 ...item,
                 inventoryItem,
               };
             })
           );
-          const supplier = await storage.getSupplier(order.supplierId);
+          const supplier = await st.getSupplier(order.supplierId);
           return {
             ...order,
             items: itemsWithDetails,
@@ -1668,24 +1766,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/purchase-orders/:id", async (req, res) => {
+  app.get("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const order = await storage.getPurchaseOrder(req.params.id);
+      const order = await st.getPurchaseOrder(req.params.id);
       if (!order) {
         return res.status(404).json({ error: "Purchase order not found" });
       }
       
-      const items = await storage.getPurchaseOrderItems(order.id);
+      const items = await st.getPurchaseOrderItems(order.id);
       const itemsWithDetails = await Promise.all(
         items.map(async (item) => {
-          const inventoryItem = await storage.getInventoryItem(item.inventoryItemId);
+          const inventoryItem = await st.getInventoryItem(item.inventoryItemId);
           return {
             ...item,
             inventoryItem,
           };
         })
       );
-      const supplier = await storage.getSupplier(order.supplierId);
+      const supplier = await st.getSupplier(order.supplierId);
       
       res.json({
         ...order,
@@ -1697,13 +1796,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/purchase-orders", async (req, res) => {
+  app.post("/api/purchase-orders", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const result = insertPurchaseOrderSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
-      const order = await storage.createPurchaseOrder(result.data);
+      const order = await st.createPurchaseOrder(result.data);
       broadcastUpdate("purchase_order_created", order);
       res.json(order);
     } catch (error) {
@@ -1711,13 +1811,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/purchase-orders/:id/items", async (req, res) => {
+  app.post("/api/purchase-orders/:id/items", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const result = insertPurchaseOrderItemSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
-      const item = await storage.createPurchaseOrderItem({
+      const item = await st.createPurchaseOrderItem({
         ...result.data,
         purchaseOrderId: req.params.id,
       });
@@ -1728,9 +1829,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/purchase-orders/:id", async (req, res) => {
+  app.patch("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const order = await storage.updatePurchaseOrder(req.params.id, req.body);
+      const order = await st.updatePurchaseOrder(req.params.id, req.body);
       if (!order) {
         return res.status(404).json({ error: "Purchase order not found" });
       }
@@ -1741,9 +1843,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/purchase-orders/:id/receive", async (req, res) => {
+  app.post("/api/purchase-orders/:id/receive", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const order = await storage.receivePurchaseOrder(req.params.id);
+      const order = await st.receivePurchaseOrder(req.params.id);
       if (!order) {
         return res.status(404).json({ error: "Purchase order not found" });
       }
@@ -1755,9 +1858,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/purchase-orders/:id", async (req, res) => {
+  app.delete("/api/purchase-orders/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const success = await storage.deletePurchaseOrder(req.params.id);
+      const success = await st.deletePurchaseOrder(req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Purchase order not found" });
       }
@@ -1769,12 +1873,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Wastage
-  app.get("/api/wastage", async (req, res) => {
+  app.get("/api/wastage", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const wastages = await storage.getWastages();
+      const wastages = await st.getWastages();
       const wastagesWithDetails = await Promise.all(
         wastages.map(async (wastage) => {
-          const inventoryItem = await storage.getInventoryItem(wastage.inventoryItemId);
+          const inventoryItem = await st.getInventoryItem(wastage.inventoryItemId);
           return {
             ...wastage,
             inventoryItem,
@@ -1787,7 +1892,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/wastage", async (req, res) => {
+  app.post("/api/wastage", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const result = insertWastageSchema.safeParse(req.body);
       if (!result.success) {
@@ -1795,7 +1901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Auto-deduct from inventory
-      const inventoryItem = await storage.getInventoryItem(result.data.inventoryItemId);
+      const inventoryItem = await st.getInventoryItem(result.data.inventoryItemId);
       if (!inventoryItem) {
         return res.status(404).json({ error: "Inventory item not found" });
       }
@@ -1805,9 +1911,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Insufficient stock for wastage entry" });
       }
       
-      await storage.updateInventoryQuantity(result.data.inventoryItemId, newStock.toString());
+      await st.updateInventoryQuantity(result.data.inventoryItemId, newStock.toString());
       
-      const wastage = await storage.createWastage(result.data);
+      const wastage = await st.createWastage(result.data);
       broadcastUpdate("wastage_created", wastage);
       broadcastUpdate("inventory_updated", { wastageId: wastage.id });
       res.json(wastage);
@@ -1816,9 +1922,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/wastage/:id", async (req, res) => {
+  app.delete("/api/wastage/:id", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const success = await storage.deleteWastage(req.params.id);
+      const success = await st.deleteWastage(req.params.id);
       if (!success) {
         return res.status(404).json({ error: "Wastage record not found" });
       }
@@ -1830,41 +1937,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Inventory Usage Tracking
-  app.get("/api/inventory-usage", async (req, res) => {
+  app.get("/api/inventory-usage", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const usages = await storage.getInventoryUsages();
+      const usages = await st.getInventoryUsages();
       res.json(usages);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch inventory usage" });
     }
   });
 
-  app.get("/api/inventory-usage/item/:itemId", async (req, res) => {
+  app.get("/api/inventory-usage/item/:itemId", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
-      const usages = await storage.getInventoryUsagesByItem(req.params.itemId);
+      const usages = await st.getInventoryUsagesByItem(req.params.itemId);
       res.json(usages);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch item usage" });
     }
   });
 
-  app.get("/api/inventory-usage/most-used", async (req, res) => {
+  app.get("/api/inventory-usage/most-used", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
-      const mostUsed = await storage.getMostUsedItems(limit);
+      const mostUsed = await st.getMostUsedItems(limit);
       res.json(mostUsed);
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to fetch most used items" });
     }
   });
 
-  app.post("/api/inventory-usage", async (req, res) => {
+  app.post("/api/inventory-usage", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const result = insertInventoryUsageSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: result.error });
       }
-      const usage = await storage.createInventoryUsage(result.data);
+      const usage = await st.createInventoryUsage(result.data);
       broadcastUpdate("inventory_usage_created", usage);
       res.json(usage);
     } catch (error) {
@@ -1873,13 +1984,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Seed Inventory and Recipes (admin endpoint)
-  app.post("/api/inventory/seed", async (req, res) => {
+  app.post("/api/inventory/seed", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       if (typeof storage.seedInventoryAndRecipes !== 'function') {
         return res.status(400).json({ error: "Seeding is only available with MongoDB storage" });
       }
       
-      const result = await storage.seedInventoryAndRecipes();
+      const result = await st.seedInventoryAndRecipes();
       broadcastUpdate("inventory_seeded", result);
       res.json({
         success: true,
@@ -1897,7 +2009,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const digitalMenuSync = new DigitalMenuSyncService(storage);
   digitalMenuSync.setBroadcastFunction(broadcastUpdate);
   
-  app.post("/api/digital-menu/sync-start", async (req, res) => {
+  app.post("/api/digital-menu/sync-start", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const intervalMs = req.body.intervalMs || 5000;
       await digitalMenuSync.start(intervalMs);
@@ -1907,7 +2020,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/digital-menu/sync-stop", async (req, res) => {
+  app.post("/api/digital-menu/sync-stop", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       digitalMenuSync.stop();
       res.json({ success: true, message: "Digital menu sync service stopped" });
@@ -1916,7 +2030,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/digital-menu/sync-now", async (req, res) => {
+  app.post("/api/digital-menu/sync-now", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const synced = await digitalMenuSync.syncOrders();
       broadcastUpdate("digital_menu_synced", { count: synced });
@@ -1926,7 +2041,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/digital-menu/status", async (req, res) => {
+  app.get("/api/digital-menu/status", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const status = digitalMenuSync.getSyncStatus();
       res.json(status);
@@ -1935,7 +2051,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/digital-menu/orders", async (req, res) => {
+  app.get("/api/digital-menu/orders", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const orders = await digitalMenuSync.getDigitalMenuOrders();
       res.json(orders);
@@ -1944,7 +2061,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/digital-menu/customers", async (req, res) => {
+  app.get("/api/digital-menu/customers", requireAuth, async (req, res) => {
+    const st = getStorage(req);
     try {
       const customers = await digitalMenuSync.getDigitalMenuCustomers();
       res.json(customers);
