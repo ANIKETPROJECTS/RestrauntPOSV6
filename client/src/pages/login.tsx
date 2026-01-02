@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
-  const { login } = useAuth();
+  const { login, checkSession } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -24,7 +24,9 @@ export default function LoginPage() {
       const result = await login(username, password);
 
       if (result.success) {
-        setLocation("/");
+        // Force session check to ensure state is updated before navigation
+        await checkSession();
+        window.location.href = "/";
       } else if (result.code === "DB_ERROR") {
         setLocation("/db-error");
       } else {
