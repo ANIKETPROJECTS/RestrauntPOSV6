@@ -7,6 +7,7 @@ async function clearKOT() {
       console.error('❌ MONGODB_URI is not set. Please set it in secrets.');
       process.exit(1);
     }
+    await mongodb.connect();
     const db = mongodb.getDatabase();
     
     console.log('Clearing OrderItems...');
